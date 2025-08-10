@@ -557,7 +557,10 @@
                 if (data.ok) {
                     showSuccess(`Shortlink berhasil dibuat: <a href="${data.short_url}" target="_blank" style="color: var(--primary);">${data.short_url}</a>`);
                     createForm.reset();
-                    loadDashboardData();
+                    // Force reload dashboard data after successful creation
+                    setTimeout(() => {
+                        loadDashboardData();
+                    }, 500);
                 } else {
                     showError(data.message || 'Gagal membuat shortlink');
                 }
@@ -578,9 +581,13 @@
         // Load all dashboard data
         async function loadDashboardData() {
             try {
+                console.log('Loading dashboard data...');
+                
                 // Load shortlinks list
                 const linksResponse = await fetch('{{ route('panel.shortlinks.list') }}');
                 const linksData = await linksResponse.json();
+                
+                console.log('Links data:', linksData);
                 
                 if (linksData.ok) {
                     allLinks = linksData.data;
@@ -591,6 +598,8 @@
                 const analyticsResponse = await fetch('{{ route('panel.analytics') }}');
                 const analyticsData = await analyticsResponse.json();
                 
+                console.log('Analytics data:', analyticsData);
+                
                 if (analyticsData.ok) {
                     updateDashboardStats(analyticsData.data);
                     updateChart('clicks', analyticsData.data);
@@ -598,6 +607,30 @@
             } catch (error) {
                 console.error('Failed to load dashboard data:', error);
             }
+        }
+
+        // Render shortlinks list
+        function renderShortlinksList() {
+            console.log('Rendering shortlinks list:', allLinks);
+            linksContainer.innerHTML = '';
+            
+            if (!allLinks || allLinks.length === 0) {
+                linksContainer.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">Belum ada shortlink</div>';
+                return;
+            }
+            
+            allLinks.forEach(link => {
+                const item = document.createElement('div');
+                item.className = 'shortlink-item';
+                item.innerHTML = `
+                    <div class="shortlink-slug">/${link.slug}</div>
+                    <div class="shortlink-dest">${link.destination}</div>
+                    <div class="shortlink-clicks">${link.clicks} clicks</div>
+                `;
+                
+                item.addEventListener('click', () => selectShortlink(link.slug));
+                linksContainer.appendChild(item);
+            });
         }
 
         // Update dashboard statistics
