@@ -24,35 +24,39 @@ class ShortlinkController extends Controller
     public function list(Request $request)
     {
         $links = Shortlink::orderByDesc('id')->limit(200)->get(['id','slug','destination','clicks','active','created_at']);
-        // compute clicks from events to be safe
+        // Compute real clicks from events table based on bot counting setting
         $countBots = (bool) config('panel.count_bots', false);
         $eventCounts = ShortlinkEvent::select('shortlink_id', DB::raw('COUNT(*) as c'))
             ->when(!$countBots, fn($q) => $q->where('is_bot', false))
             ->whereIn('shortlink_id', $links->pluck('id'))
             ->groupBy('shortlink_id')->pluck('c','shortlink_id');
+        
         $links = $links->map(function ($l) use ($eventCounts) {
             $l->clicks = (int) ($eventCounts[$l->id] ?? 0);
             return $l;
         });
+        
         return response()->json(['ok' => true, 'data' => $links]);
     }
 
     public function store(Request $request)
     {
         try {
-            // Normalize destination: add https:// if user omits scheme
-            if ($request->filled('destination') && !preg_match('/^https?:\/\//i', $request->input('destination'))) {
-                $request->merge(['destination' => 'https://' . ltrim($request->input('destination'))]);
+            // Auto-add https:// if missing
+            $destination = $request->input('destination', '');
+            if ($destination && !preg_match('/^https?:\/\//i', $destination)) {
+                $destination = 'https://' . ltrim($destination, '/');
+                $request->merge(['destination' => $destination]);
             }
 
             $data = $request->validate([
                 'destination' => ['required','url','max:2048'],
                 'slug' => ['nullable','alpha_dash','min:3','max:64','unique:shortlinks,slug'],
-                'random' => ['nullable','boolean']
             ]);
 
             $slug = $data['slug'] ?? null;
-            if (!$slug) {
+            if (!$slug || trim($slug) === '') {
+                // Generate random slug
                 $length = 6;
                 do {
                     $slug = Str::lower(Str::random($length));
@@ -63,22 +67,30 @@ class ShortlinkController extends Controller
             $link = Shortlink::create([
                 'slug' => $slug,
                 'destination' => $data['destination'],
+                'clicks' => 0,
+                'active' => true,
                 'meta' => [
                     'created_ip' => $request->ip(),
                     'created_by' => 'panel',
+                    'created_at_formatted' => now()->format('Y-m-d H:i:s'),
                 ],
             ]);
 
             return response()->json([
                 'ok' => true,
-                'data' => $link,
+                'data' => $link->fresh(),
                 'short_url' => url($slug)
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Validasi gagal: ' . collect($e->errors())->flatten()->first(),
+            ], 422);
         } catch (\Throwable $e) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Gagal menyimpan shortlink: '.$e->getMessage(),
-            ], 422);
+                'message' => 'Gagal menyimpan shortlink: ' . $e->getMessage(),
+            ], 500);
         }
     }
 
@@ -108,11 +120,10 @@ class ShortlinkController extends Controller
                 $reader = new GeoIP2Reader($dbPath);
                 $rec = $reader->city($ip);
                 $country = $rec->country?->isoCode; $city = $rec->city?->name;
-                // If you also have ASN DB, you can read it similarly (requires GeoLite2-ASN.mmdb)
                 $reader->close();
             }
         } catch (\Throwable $e) {
-            // ignore failures
+            // Ignore GeoIP failures
         }
 
         return [$country, $city, $asn, $org];
@@ -120,72 +131,98 @@ class ShortlinkController extends Controller
 
     protected function recordHit(int $shortlinkId, array $payload): void
     {
-        // Simpan event dan increment clicks (abaikan bot bila diatur)
-        DB::transaction(function () use ($shortlinkId, $payload) {
-            ShortlinkEvent::create(array_merge($payload, [
-                'shortlink_id' => $shortlinkId,
-                'clicked_at' => now(),
-            ]));
+        try {
+            DB::transaction(function () use ($shortlinkId, $payload) {
+                // Always create event record
+                ShortlinkEvent::create(array_merge($payload, [
+                    'shortlink_id' => $shortlinkId,
+                    'clicked_at' => now(),
+                ]));
 
-            $countBots = (bool) config('panel.count_bots', false);
-            if ($countBots || empty($payload['is_bot'])) {
-                Shortlink::where('id', $shortlinkId)->update([
-                    'clicks' => DB::raw('clicks + 1')
-                ]);
-            }
-        });
+                // Increment clicks only if counting bots OR this is not a bot
+                $countBots = (bool) config('panel.count_bots', false);
+                $isBot = (bool) ($payload['is_bot'] ?? false);
+                
+                if ($countBots || !$isBot) {
+                    Shortlink::where('id', $shortlinkId)->update([
+                        'clicks' => DB::raw('clicks + 1')
+                    ]);
+                }
+            });
+        } catch (\Throwable $e) {
+            \Log::error('Failed to record hit: ' . $e->getMessage(), [
+                'shortlink_id' => $shortlinkId,
+                'payload' => $payload
+            ]);
+            throw $e; // Re-throw for debugging
+        }
     }
 
     public function redirect(Request $request, string $slug)
     {
         $link = Shortlink::where('slug', $slug)->where('active', true)->first();
-        if (!$link) abort(404);
+        if (!$link) {
+            abort(404, 'Shortlink not found');
+        }
 
         $ip = $request->headers->get('CF-Connecting-IP') ?: $request->ip();
-        if (BlockedIp::where('ip', $ip)->exists()) abort(403);
+        
+        // Check if IP is blocked
+        if (BlockedIp::where('ip', $ip)->exists()) {
+            abort(403, 'IP blocked');
+        }
 
-        // Initialize crawler detector with headers and proper User-Agent string
-        $crawler = new CrawlerDetect($request->headers->all(), (string) $request->userAgent());
+        // Bot detection
+        $userAgent = (string) $request->userAgent();
+        $crawler = new CrawlerDetect($request->headers->all(), $userAgent);
         $isBot = $crawler->isCrawler();
 
+        // Get user agent details
         $agent = new Agent();
-        $agent->setUserAgent($request->userAgent());
+        $agent->setUserAgent($userAgent);
 
-        // Prefer CF country, else geo lookup including ASN/org
+        // Geo lookup
         $country = $request->headers->get('CF-IPCountry');
         $city = $asn = $org = null;
         if (!$country) {
             [$country, $city, $asn, $org] = $this->geoLookup($ip);
         }
 
+        // Prepare event payload
         $payload = [
             'ip' => $ip,
             'country' => $country,
             'city' => $city,
             'asn' => $asn,
             'org' => $org,
-            'device' => $agent->device(),
-            'platform' => $agent->platform(),
-            'browser' => $agent->browser(),
+            'device' => $agent->device() ?: 'Unknown',
+            'platform' => $agent->platform() ?: 'Unknown',
+            'browser' => $agent->browser() ?: 'Unknown',
             'referrer' => $request->headers->get('referer'),
             'is_bot' => $isBot,
         ];
 
-        // Record synchronously for reliability
+        // Record hit immediately before redirect
         try {
             $this->recordHit($link->id, $payload);
         } catch (\Throwable $e) {
-            // swallow to not break redirect; optionally log
-            \Log::warning('recordHit failed: '.$e->getMessage());
+            // Log error but don't break redirect
+            \Log::error('Recording hit failed, but continuing redirect: ' . $e->getMessage());
         }
 
-        if ($isBot && config('panel.block_bots')) {
-            if (config('panel.auto_block_bot_ips')) {
-                BlockedIp::firstOrCreate(['ip' => $ip], ['reason' => 'auto-bot']);
+        // Block bots after recording (if enabled)
+        if ($isBot && config('panel.block_bots', true)) {
+            if (config('panel.auto_block_bot_ips', true)) {
+                try {
+                    BlockedIp::firstOrCreate(['ip' => $ip], ['reason' => 'auto-bot-' . now()->format('Y-m-d')]);
+                } catch (\Throwable $e) {
+                    \Log::error('Failed to block bot IP: ' . $e->getMessage());
+                }
             }
-            abort(403);
+            abort(403, 'Bot access blocked');
         }
 
+        // Redirect to destination
         return redirect()->away($link->destination, 302);
     }
 
@@ -195,26 +232,39 @@ class ShortlinkController extends Controller
 
         $countBots = (bool) config('panel.count_bots', false);
         $eventsQuery = ShortlinkEvent::where('shortlink_id', $link->id);
-        if (!$countBots) { $eventsQuery->where('is_bot', false); }
+        if (!$countBots) { 
+            $eventsQuery->where('is_bot', false); 
+        }
 
+        // Get recent events
         $events = (clone $eventsQuery)->latest('clicked_at')->limit(200)
             ->get(['clicked_at','ip','country','city','asn','org','device','platform','browser','referrer','is_bot']);
 
+        // Get total clicks
         $totalClicks = (clone $eventsQuery)->count();
 
+        // Get aggregations
         $agg = [
             'by_country' => ShortlinkEvent::select('country', DB::raw('count(*) as c'))
-                ->where('shortlink_id', $link->id)->when(!$countBots, fn($q)=>$q->where('is_bot', false))
-                ->whereNotNull('country')->groupBy('country')->orderByDesc('c')->limit(20)->get(),
+                ->where('shortlink_id', $link->id)
+                ->when(!$countBots, fn($q) => $q->where('is_bot', false))
+                ->whereNotNull('country')
+                ->groupBy('country')->orderByDesc('c')->limit(20)->get(),
             'by_org' => ShortlinkEvent::select('org', DB::raw('count(*) as c'))
-                ->where('shortlink_id', $link->id)->when(!$countBots, fn($q)=>$q->where('is_bot', false))
-                ->whereNotNull('org')->groupBy('org')->orderByDesc('c')->limit(20)->get(),
+                ->where('shortlink_id', $link->id)
+                ->when(!$countBots, fn($q) => $q->where('is_bot', false))
+                ->whereNotNull('org')
+                ->groupBy('org')->orderByDesc('c')->limit(20)->get(),
             'by_device' => ShortlinkEvent::select('device', DB::raw('count(*) as c'))
-                ->where('shortlink_id', $link->id)->when(!$countBots, fn($q)=>$q->where('is_bot', false))
-                ->whereNotNull('device')->groupBy('device')->orderByDesc('c')->limit(10)->get(),
+                ->where('shortlink_id', $link->id)
+                ->when(!$countBots, fn($q) => $q->where('is_bot', false))
+                ->whereNotNull('device')
+                ->groupBy('device')->orderByDesc('c')->limit(10)->get(),
             'by_browser' => ShortlinkEvent::select('browser', DB::raw('count(*) as c'))
-                ->where('shortlink_id', $link->id)->when(!$countBots, fn($q)=>$q->where('is_bot', false))
-                ->whereNotNull('browser')->groupBy('browser')->orderByDesc('c')->limit(10)->get(),
+                ->where('shortlink_id', $link->id)
+                ->when(!$countBots, fn($q) => $q->where('is_bot', false))
+                ->whereNotNull('browser')
+                ->groupBy('browser')->orderByDesc('c')->limit(10)->get(),
         ];
 
         return response()->json(['ok' => true, 'summary' => [
