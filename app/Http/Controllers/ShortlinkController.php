@@ -262,6 +262,7 @@ class ShortlinkController extends Controller
             $data = $request->validate([
                 'destination' => ['required','url','max:2048'],
                 'slug' => ['nullable','alpha_dash','min:3','max:64','unique:shortlinks,slug'],
+                'domain_id' => ['nullable','exists:domains,id']
             ]);
 
             $slug = $data['slug'] ?? null;
@@ -277,6 +278,7 @@ class ShortlinkController extends Controller
             $link = Shortlink::create([
                 'slug' => $slug,
                 'destination' => $data['destination'],
+                'domain_id' => $data['domain_id'] ?? null,
                 'clicks' => 0,
                 'active' => true,
                 'meta' => [
@@ -289,7 +291,7 @@ class ShortlinkController extends Controller
             return response()->json([
                 'ok' => true,
                 'data' => $link->fresh(),
-                'short_url' => url($slug)
+                'short_url' => $link->full_url
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([

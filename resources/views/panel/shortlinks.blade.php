@@ -502,6 +502,9 @@
                 </div>
             </div>
             <div class="header-actions">
+                <a href="{{ route('panel.domains') }}" class="btn btn-info">
+                    🌍 Domains
+                </a>
                 <button class="btn btn-primary" onclick="refreshData()">
                     🔄 Refresh
                 </button>
@@ -600,6 +603,13 @@
                                required>
                     </div>
                     <div class="form-group">
+                        <label class="form-label" for="domain_id">Domain</label>
+                        <select id="domain_id" name="domain_id" class="form-input">
+                            <option value="">Use default domain</option>
+                            <!-- Domain options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label class="form-label" for="slug">Custom Slug (optional)</label>
                         <input type="text" 
                                id="slug" 
@@ -690,6 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTime();
     loadAnalytics();
     loadLinks();
+    loadDomains();
     setupEventListeners();
     
     // Auto-refresh every 30 seconds
@@ -958,6 +969,7 @@ async function createShortlink() {
     const formData = new FormData(form);
     const destination = formData.get('destination');
     const slug = formData.get('slug');
+    const domain_id = formData.get('domain_id');
     
     try {
         const response = await fetch('/api/create', {
@@ -967,7 +979,7 @@ async function createShortlink() {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify({ destination, slug })
+            body: JSON.stringify({ destination, slug, domain_id })
         });
         
         const data = await response.json();
@@ -978,13 +990,42 @@ async function createShortlink() {
             loadAnalytics();
             
             // Show success message
-            alert(`Shortlink created successfully!\nSlug: ${data.data.slug}\nURL: ${window.location.origin}/${data.data.slug}`);
+            alert(`Shortlink created successfully!\nSlug: ${data.data.slug}\nURL: ${data.data.full_url || window.location.origin + '/' + data.data.slug}`);
         } else {
             alert(`Error: ${data.message || data.error || 'Failed to create shortlink'}`);
         }
     } catch (error) {
         console.error('Failed to create shortlink:', error);
         alert('Failed to create shortlink. Please try again.');
+    }
+}
+
+async function loadDomains() {
+    try {
+        const response = await fetch('/api/domains');
+        const data = await response.json();
+        
+        if (data.ok) {
+            const domainSelect = document.getElementById('domain_id');
+            
+            // Clear existing options except the default one
+            domainSelect.innerHTML = '<option value="">Use default domain</option>';
+            
+            data.data.forEach(domain => {
+                const option = document.createElement('option');
+                option.value = domain.id;
+                option.textContent = domain.domain + (domain.is_default ? ' (Default)' : '');
+                
+                if (domain.is_default) {
+                    option.selected = true;
+                }
+                
+                domainSelect.appendChild(option);
+            });
+        }
+        
+    } catch (error) {
+        console.error('Failed to load domains:', error);
     }
 }
 

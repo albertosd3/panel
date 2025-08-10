@@ -37,6 +37,7 @@ Route::middleware('panel.auth')->group(function () {
         Route::get('/links', [ShortlinkController::class, 'list'])->name('api.links');
         Route::get('/analytics', [ShortlinkController::class, 'analytics'])->name('api.analytics');
         Route::post('/create', [ShortlinkController::class, 'store'])->name('api.create');
+        Route::get('/domains', [App\Http\Controllers\DomainController::class, 'apiList'])->name('api.domains');
         Route::get('/debug', function () {
             return response()->json([
                 'ok' => true,
@@ -49,6 +50,22 @@ Route::middleware('panel.auth')->group(function () {
         });
     });
 });
+
+// Domain management routes (authenticated)
+Route::middleware('panel')->prefix('panel')->group(function () {
+    Route::get('/domains', [App\Http\Controllers\DomainController::class, 'index'])->name('panel.domains');
+    Route::post('/domains', [App\Http\Controllers\DomainController::class, 'store'])->name('panel.domains.store');
+    Route::put('/domains/{domain}', [App\Http\Controllers\DomainController::class, 'update'])->name('panel.domains.update');
+    Route::delete('/domains/{domain}', [App\Http\Controllers\DomainController::class, 'destroy'])->name('panel.domains.destroy');
+    Route::patch('/domains/{domain}/set-default', [App\Http\Controllers\DomainController::class, 'setDefault'])->name('panel.domains.set-default');
+    Route::patch('/domains/{domain}/toggle-active', [App\Http\Controllers\DomainController::class, 'toggleActive'])->name('panel.domains.toggle-active');
+    Route::post('/domains/{domain}/test', [App\Http\Controllers\DomainController::class, 'testDomain'])->name('panel.domains.test');
+});
+
+// Health check route for domain testing
+Route::get('/health-check', function () {
+    return response('OK', 200)->header('Content-Type', 'text/plain');
+})->name('health-check');
 
 // Public redirect route (keep at bottom, after other routes)
 Route::get('/{slug}', [ShortlinkController::class, 'redirect'])
