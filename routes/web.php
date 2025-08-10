@@ -25,6 +25,7 @@ Route::middleware('panel.auth')->group(function () {
     // Shortlink management UI
     Route::get('/panel/shortlinks', [ShortlinkController::class, 'index'])->name('panel.shortlinks');
     Route::get('/panel/shortlinks/list', [ShortlinkController::class, 'list'])->name('panel.shortlinks.list');
+    Route::get('/panel/analytics', [ShortlinkController::class, 'analytics'])->name('panel.analytics');
     Route::post('/panel/shortlinks', [ShortlinkController::class, 'store'])->name('panel.shortlinks.store');
     Route::get('/panel/shortlinks/{slug}/stats', [ShortlinkController::class, 'stats'])->name('panel.shortlinks.stats');
 

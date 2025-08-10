@@ -39,6 +39,86 @@ class ShortlinkController extends Controller
         return response()->json(['ok' => true, 'data' => $links]);
     }
 
+    public function analytics(Request $request)
+    {
+        $countBots = (bool) config('panel.count_bots', false);
+        
+        // General statistics
+        $totalLinks = Shortlink::count();
+        $totalClicks = ShortlinkEvent::when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+        
+        // Today's clicks
+        $todayClicks = ShortlinkEvent::whereDate('clicked_at', today())
+            ->when(!$countBots, fn($q) => $q->where('is_bot', false))
+            ->count();
+        
+        // Last 7 days timeline
+        $timeline = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $clicks = ShortlinkEvent::whereDate('clicked_at', $date)
+                ->when(!$countBots, fn($q) => $q->where('is_bot', false))
+                ->count();
+            $timeline[] = [
+                'date' => $date->format('M d'),
+                'clicks' => $clicks
+            ];
+        }
+        
+        // Top countries
+        $topCountries = ShortlinkEvent::select('country', DB::raw('COUNT(*) as count'))
+            ->when(!$countBots, fn($q) => $q->where('is_bot', false))
+            ->whereNotNull('country')
+            ->groupBy('country')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+        
+        // Device stats
+        $deviceStats = ShortlinkEvent::select('device', DB::raw('COUNT(*) as count'))
+            ->when(!$countBots, fn($q) => $q->where('is_bot', false))
+            ->whereNotNull('device')
+            ->groupBy('device')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+        
+        // Browser stats
+        $browserStats = ShortlinkEvent::select('browser', DB::raw('COUNT(*) as count'))
+            ->when(!$countBots, fn($q) => $q->where('is_bot', false))
+            ->whereNotNull('browser')
+            ->groupBy('browser')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+        
+        // Top shortlinks by clicks
+        $topLinks = Shortlink::select('shortlinks.slug', 'shortlinks.destination', DB::raw('COUNT(shortlink_events.id) as clicks'))
+            ->leftJoin('shortlink_events', 'shortlinks.id', '=', 'shortlink_events.shortlink_id')
+            ->when(!$countBots, fn($q) => $q->where('shortlink_events.is_bot', false))
+            ->groupBy('shortlinks.id', 'shortlinks.slug', 'shortlinks.destination')
+            ->orderByDesc('clicks')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'overview' => [
+                    'total_links' => $totalLinks,
+                    'total_clicks' => $totalClicks,
+                    'today_clicks' => $todayClicks,
+                    'avg_clicks_per_link' => $totalLinks > 0 ? round($totalClicks / $totalLinks, 1) : 0
+                ],
+                'timeline' => $timeline,
+                'top_countries' => $topCountries,
+                'device_stats' => $deviceStats,
+                'browser_stats' => $browserStats,
+                'top_links' => $topLinks
+            ]
+        ]);
+    }
+
     public function store(Request $request)
     {
         try {
