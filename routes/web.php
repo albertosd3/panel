@@ -4,6 +4,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PanelAuthController;
 use App\Http\Controllers\ShortlinkController;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Session\Middleware\AuthenticateSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 Route::get('/', function () {
     return view('welcome');
@@ -31,4 +34,9 @@ Route::middleware('panel.auth')->group(function () {
 // Public redirect route (keep at bottom, after other routes)
 Route::get('/{slug}', [ShortlinkController::class, 'redirect'])
     ->where('slug', '[A-Za-z0-9_-]+')
-    ->withoutMiddleware([StartSession::class]);
+    ->withoutMiddleware([
+        StartSession::class,
+        AuthenticateSession::class,
+        ShareErrorsFromSession::class,
+        ValidateCsrfToken::class,
+    ]);
