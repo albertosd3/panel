@@ -17,10 +17,14 @@ class PanelAuthController extends Controller
             'pin' => ['required','digits:6'],
         ]);
 
-        $expected = (string) config('panel.pin');
-        $given = (string) $data['pin'];
+        $expected = trim((string) config('panel.pin'));
+        $given = trim((string) $data['pin']);
 
-        if ($expected !== '' && hash_equals($expected, $given)) {
+        if ($expected === '') {
+            return back()->withErrors(['pin' => 'PIN belum diset di konfigurasi.'])->withInput();
+        }
+
+        if (hash_equals($expected, $given)) {
             session(['panel_authenticated' => true]);
             return redirect()->route('panel.index');
         }
