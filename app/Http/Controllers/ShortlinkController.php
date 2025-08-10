@@ -21,6 +21,12 @@ class ShortlinkController extends Controller
         return view('panel.shortlinks');
     }
 
+    public function list(Request $request)
+    {
+        $links = Shortlink::orderByDesc('id')->limit(200)->get(['id','slug','destination','clicks','active','created_at']);
+        return response()->json(['ok' => true, 'data' => $links]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

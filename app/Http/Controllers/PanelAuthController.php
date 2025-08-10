@@ -26,7 +26,7 @@ class PanelAuthController extends Controller
 
         if (hash_equals($expected, $given)) {
             session(['panel_authenticated' => true]);
-            return redirect()->route('panel.index');
+            return redirect()->route('panel.shortlinks');
         }
 
         return back()
