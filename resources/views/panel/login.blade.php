@@ -1,50 +1,229 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Login Panel</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        :root{ --bg:#0b1020; --card:#0e1726; --muted:#8aa0b3; --text:#e6eef6; --primary:#4f8cff; --primary2:#3b82f6; }
-        *{ box-sizing:border-box }
-        body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background:radial-gradient(1200px 600px at 10% -10%, #1b2540 0%, transparent 60%), var(--bg); color:var(--text); display:grid; place-items:center; min-height:100vh; margin:0; }
-        .card { background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.005)); border:1px solid rgba(255,255,255,.06); backdrop-filter: blur(8px); padding:28px; border-radius:16px; width:min(420px,92vw); box-shadow:0 20px 60px rgba(0,0,0,.45); }
-        h1 { margin:0 0 8px; font-size:24px; font-weight:800; letter-spacing:.2px; }
-        p.sub{ margin:0 0 18px; color:var(--muted); font-size:14px; }
-        label { display:block; margin:10px 0 8px; font-size:14px; color:#cbd5e1; }
-        input { width:100%; padding:14px 14px; font-size:18px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:rgba(5,10,22,.8); color:#e5e7eb; outline:none; transition:.15s border, .15s box-shadow; }
-        input:focus { border-color:var(--primary); box-shadow:0 0 0 6px rgba(79,140,255,.12); }
-        .btn { width:100%; margin-top:16px; padding:12px 16px; border-radius:12px; border:0; background:linear-gradient(90deg, var(--primary), var(--primary2)); color:white; font-weight:700; font-size:16px; cursor:pointer; box-shadow:0 8px 24px rgba(63,131,248,.25); }
-        .btn:hover { filter:brightness(1.05); }
-        .error { color:#fda4af; margin:8px 0 0; font-size:14px; }
-        footer{ margin-top:14px; color:var(--muted); font-size:12px; text-align:center }
-    </style>
-</head>
-<body>
-<div class="card">
-    <h1>Masuk Panel</h1>
-    <p class="sub">Gunakan PIN 6 digit untuk mengakses panel.</p>
+@extends('layouts.envelope')
 
-    @if ($errors->any())
-        <div class="error">{{ $errors->first() }}</div>
-    @endif
+@section('title', 'Secure Panel Access')
 
-    <form method="POST" action="{{ route('panel.verify') }}">
-        @csrf
-        <label for="pin">PIN (6 digit)</label>
-        <input id="pin"
-               name="pin"
-               type="password"
-               inputmode="numeric"
-               pattern="[0-9]*"
-               minlength="6"
-               maxlength="6"
-               autocomplete="one-time-code"
-               required
-               value="{{ old('pin') }}">
-        <button class="btn" type="submit">Masuk</button>
-    </form>
-    <footer>Keamanan PIN tersimpan di server (.env)</footer>
+@push('styles')
+<style>
+    .login-envelope {
+        width: 100%;
+        max-width: 420px;
+        position: relative;
+    }
+    
+    .envelope-flap {
+        position: relative;
+        height: 160px;
+        background: linear-gradient(135deg, var(--color-primary) 0%, #1e40af 100%);
+        border-radius: 12px 12px 0 0;
+        overflow: hidden;
+    }
+    
+    .envelope-flap::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='m36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+    }
+    
+    .envelope-seal {
+        position: absolute;
+        top: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 80px;
+        background: var(--color-white);
+        border-radius: 50%;
+        border: 4px solid var(--color-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .seal-icon {
+        width: 32px;
+        height: 32px;
+        background: var(--color-primary);
+        border-radius: 50%;
+        position: relative;
+    }
+    
+    .seal-icon::before {
+        content: '🔒';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 16px;
+    }
+    
+    .letter-content {
+        background: var(--color-white);
+        padding: 40px 32px 32px;
+        margin-top: -40px;
+        border-radius: 0 0 12px 12px;
+        position: relative;
+        z-index: 5;
+    }
+    
+    .security-badge {
+        display: inline-flex;
+        align-items: center;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 1px solid #fbbf24;
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #92400e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 24px;
+    }
+    
+    .security-badge::before {
+        content: '🛡️';
+        margin-right: 6px;
+    }
+    
+    .pin-input {
+        text-align: center;
+        font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
+        font-size: 18px;
+        letter-spacing: 4px;
+        font-weight: 600;
+        padding: 16px;
+        background: #f8fafc;
+        border: 2px solid #e5e7eb;
+    }
+    
+    .pin-input:focus {
+        background: var(--color-white);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .access-info {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 24px;
+        text-align: center;
+    }
+    
+    .access-info-title {
+        font-weight: 600;
+        color: var(--color-dark);
+        margin-bottom: 4px;
+        font-size: 13px;
+    }
+    
+    .access-info-text {
+        color: var(--color-muted);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+</style>
+@endpush
+
+@section('content')
+<div class="envelope-container">
+    <div class="login-envelope">
+        <div class="paper">
+            <!-- Envelope Flap -->
+            <div class="envelope-flap">
+                <div class="envelope-seal">
+                    <div class="seal-icon"></div>
+                </div>
+            </div>
+            
+            <!-- Letter Content -->
+            <div class="letter-content">
+                <div class="text-center">
+                    <div class="security-badge">Secure Access</div>
+                    <h1 class="heading-primary">Panel Authentication</h1>
+                    <p class="text-muted mb-4">Enter your 6-digit security PIN to continue</p>
+                </div>
+
+                @if ($errors->any())
+                    <div class="alert alert-error">
+                        <strong>Access Denied:</strong> {{ $errors->first() }}
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('panel.verify') }}">
+                    @csrf
+                    <div class="form-group">
+                        <label for="pin" class="form-label">Security PIN</label>
+                        <input 
+                            id="pin"
+                            name="pin"
+                            type="password"
+                            class="form-control pin-input"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            minlength="6"
+                            maxlength="6"
+                            autocomplete="one-time-code"
+                            placeholder="••••••"
+                            required
+                            value="{{ old('pin') }}"
+                        >
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-full">
+                        Access Control Panel
+                    </button>
+                </form>
+                
+                <div class="access-info">
+                    <div class="access-info-title">Protected Environment</div>
+                    <div class="access-info-text">
+                        This panel is secured with enterprise-grade authentication.<br>
+                        Only authorized personnel with valid PIN access are permitted.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-</body>
-</html>
+@endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const pinInput = document.getElementById('pin');
+    
+    // Auto-focus on load
+    pinInput.focus();
+    
+    // Only allow numeric input
+    pinInput.addEventListener('input', function(e) {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        
+        // Auto-submit when 6 digits entered
+        if (this.value.length === 6) {
+            this.form.submit();
+        }
+    });
+    
+    // Prevent paste of non-numeric content
+    pinInput.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const paste = (e.clipboardData || window.clipboardData).getData('text');
+        const numericPaste = paste.replace(/[^0-9]/g, '').slice(0, 6);
+        this.value = numericPaste;
+        
+        if (numericPaste.length === 6) {
+            this.form.submit();
+        }
+    });
+});
+</script>
+@endpush

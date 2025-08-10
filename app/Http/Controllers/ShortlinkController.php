@@ -42,28 +42,19 @@ class ShortlinkController extends Controller
     public function analytics(Request $request)
     {
         $countBots = (bool) config('panel.count_bots', false);
+        $period = $request->get('period', 'week'); // day, week, month, year
         
         // General statistics
         $totalLinks = Shortlink::count();
         $totalClicks = ShortlinkEvent::when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
         
+        // Period-based calculations
+        $periodData = $this->getPeriodData($period, $countBots);
+        
         // Today's clicks
         $todayClicks = ShortlinkEvent::whereDate('clicked_at', today())
             ->when(!$countBots, fn($q) => $q->where('is_bot', false))
             ->count();
-        
-        // Last 7 days timeline
-        $timeline = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = now()->subDays($i);
-            $clicks = ShortlinkEvent::whereDate('clicked_at', $date)
-                ->when(!$countBots, fn($q) => $q->where('is_bot', false))
-                ->count();
-            $timeline[] = [
-                'date' => $date->format('M d'),
-                'clicks' => $clicks
-            ];
-        }
         
         // Top countries
         $topCountries = ShortlinkEvent::select('country', DB::raw('COUNT(*) as count'))
@@ -110,13 +101,152 @@ class ShortlinkController extends Controller
                     'today_clicks' => $todayClicks,
                     'avg_clicks_per_link' => $totalLinks > 0 ? round($totalClicks / $totalLinks, 1) : 0
                 ],
-                'timeline' => $timeline,
+                'timeline' => $periodData['timeline'],
+                'comparison' => $periodData['comparison'],
+                'period' => $period,
                 'top_countries' => $topCountries,
                 'device_stats' => $deviceStats,
                 'browser_stats' => $browserStats,
                 'top_links' => $topLinks
             ]
         ]);
+    }
+
+    private function getPeriodData(string $period, bool $countBots): array
+    {
+        $timeline = [];
+        $comparison = [];
+        
+        switch ($period) {
+            case 'day':
+                // Last 24 hours by hour
+                for ($i = 23; $i >= 0; $i--) {
+                    $hour = now()->subHours($i);
+                    $clicks = ShortlinkEvent::whereBetween('clicked_at', [
+                        $hour->copy()->startOfHour(),
+                        $hour->copy()->endOfHour()
+                    ])->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                    
+                    $timeline[] = [
+                        'date' => $hour->format('H:i'),
+                        'clicks' => $clicks
+                    ];
+                }
+                
+                // Compare with yesterday
+                $todayClicks = ShortlinkEvent::whereDate('clicked_at', today())
+                    ->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                $yesterdayClicks = ShortlinkEvent::whereDate('clicked_at', today()->subDay())
+                    ->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                
+                $comparison = [
+                    'current' => $todayClicks,
+                    'previous' => $yesterdayClicks,
+                    'change' => $yesterdayClicks > 0 ? (($todayClicks - $yesterdayClicks) / $yesterdayClicks) * 100 : 0,
+                    'label' => 'vs Yesterday'
+                ];
+                break;
+                
+            case 'week':
+                // Last 7 days
+                for ($i = 6; $i >= 0; $i--) {
+                    $date = now()->subDays($i);
+                    $clicks = ShortlinkEvent::whereDate('clicked_at', $date)
+                        ->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                    
+                    $timeline[] = [
+                        'date' => $date->format('M d'),
+                        'clicks' => $clicks
+                    ];
+                }
+                
+                // Compare with last week
+                $thisWeekClicks = ShortlinkEvent::whereBetween('clicked_at', [
+                    now()->startOfWeek(),
+                    now()->endOfWeek()
+                ])->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                
+                $lastWeekClicks = ShortlinkEvent::whereBetween('clicked_at', [
+                    now()->subWeek()->startOfWeek(),
+                    now()->subWeek()->endOfWeek()
+                ])->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                
+                $comparison = [
+                    'current' => $thisWeekClicks,
+                    'previous' => $lastWeekClicks,
+                    'change' => $lastWeekClicks > 0 ? (($thisWeekClicks - $lastWeekClicks) / $lastWeekClicks) * 100 : 0,
+                    'label' => 'vs Last Week'
+                ];
+                break;
+                
+            case 'month':
+                // Last 30 days
+                for ($i = 29; $i >= 0; $i--) {
+                    $date = now()->subDays($i);
+                    $clicks = ShortlinkEvent::whereDate('clicked_at', $date)
+                        ->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                    
+                    $timeline[] = [
+                        'date' => $date->format('M d'),
+                        'clicks' => $clicks
+                    ];
+                }
+                
+                // Compare with last month
+                $thisMonthClicks = ShortlinkEvent::whereBetween('clicked_at', [
+                    now()->startOfMonth(),
+                    now()->endOfMonth()
+                ])->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                
+                $lastMonthClicks = ShortlinkEvent::whereBetween('clicked_at', [
+                    now()->subMonth()->startOfMonth(),
+                    now()->subMonth()->endOfMonth()
+                ])->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                
+                $comparison = [
+                    'current' => $thisMonthClicks,
+                    'previous' => $lastMonthClicks,
+                    'change' => $lastMonthClicks > 0 ? (($thisMonthClicks - $lastMonthClicks) / $lastMonthClicks) * 100 : 0,
+                    'label' => 'vs Last Month'
+                ];
+                break;
+                
+            case 'year':
+                // Last 12 months
+                for ($i = 11; $i >= 0; $i--) {
+                    $month = now()->subMonths($i);
+                    $clicks = ShortlinkEvent::whereBetween('clicked_at', [
+                        $month->copy()->startOfMonth(),
+                        $month->copy()->endOfMonth()
+                    ])->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                    
+                    $timeline[] = [
+                        'date' => $month->format('M Y'),
+                        'clicks' => $clicks
+                    ];
+                }
+                
+                // Compare with last year
+                $thisYearClicks = ShortlinkEvent::whereBetween('clicked_at', [
+                    now()->startOfYear(),
+                    now()->endOfYear()
+                ])->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                
+                $lastYearClicks = ShortlinkEvent::whereBetween('clicked_at', [
+                    now()->subYear()->startOfYear(),
+                    now()->subYear()->endOfYear()
+                ])->when(!$countBots, fn($q) => $q->where('is_bot', false))->count();
+                
+                $comparison = [
+                    'current' => $thisYearClicks,
+                    'previous' => $lastYearClicks,
+                    'change' => $lastYearClicks > 0 ? (($thisYearClicks - $lastYearClicks) / $lastYearClicks) * 100 : 0,
+                    'label' => 'vs Last Year'
+                ];
+                break;
+        }
+        
+        return compact('timeline', 'comparison');
     }
 
     public function store(Request $request)
@@ -254,6 +384,10 @@ class ShortlinkController extends Controller
 
         // Bot detection
         $userAgent = (string) $request->userAgent();
+        
+        // Check if IP is in legitimate crawler whitelist
+        $isLegitimateBot = $this->isLegitimateBot($userAgent);
+
         $crawler = new CrawlerDetect($request->headers->all(), $userAgent);
         $isBot = $crawler->isCrawler();
 
@@ -266,6 +400,16 @@ class ShortlinkController extends Controller
         $city = $asn = $org = null;
         if (!$country) {
             [$country, $city, $asn, $org] = $this->geoLookup($ip);
+        }
+
+        // Aggressive bot detection
+        if (config('panel.aggressive_bot_detection', true)) {
+            $isBot = $isBot || $this->isAggressiveBot($ip, $userAgent, $country, $asn, $org);
+        }
+
+        // Don't block legitimate crawlers
+        if ($isLegitimateBot) {
+            $isBot = false;
         }
 
         // Prepare event payload
@@ -294,7 +438,10 @@ class ShortlinkController extends Controller
         if ($isBot && config('panel.block_bots', true)) {
             if (config('panel.auto_block_bot_ips', true)) {
                 try {
-                    BlockedIp::firstOrCreate(['ip' => $ip], ['reason' => 'auto-bot-' . now()->format('Y-m-d')]);
+                    $reason = 'auto-bot-' . now()->format('Y-m-d');
+                    if ($asn) $reason .= '-' . $asn;
+                    if ($org) $reason .= '-' . substr($org, 0, 20);
+                    BlockedIp::firstOrCreate(['ip' => $ip], ['reason' => $reason]);
                 } catch (\Throwable $e) {
                     \Log::error('Failed to block bot IP: ' . $e->getMessage());
                 }
@@ -353,4 +500,109 @@ class ShortlinkController extends Controller
             'aggregate' => $agg,
         ]]);
     }
+
+    protected function isLegitimateBot(string $userAgent): bool
+    {
+        $legitimateBots = config('panel.legitimate_bots', []);
+        $userAgentLower = strtolower($userAgent);
+        
+        foreach ($legitimateBots as $bot) {
+            if (str_contains($userAgentLower, strtolower($bot))) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    protected function ipInRange(string $ip, string $range): bool
+    {
+        if (strpos($range, '/') === false) {
+            return $ip === $range;
+        }
+        
+        [$subnet, $mask] = explode('/', $range);
+        $ip = ip2long($ip);
+        $subnet = ip2long($subnet);
+        $mask = -1 << (32 - $mask);
+        
+        return ($ip & $mask) === ($subnet & $mask);
+    }
+
+    protected function isAggressiveBot(string $ip, string $userAgent, ?string $country, ?string $asn, ?string $org): bool
+    {
+        // Check blocked countries
+        if (config('panel.block_bot_countries', false) && $country) {
+            $blockedCountries = config('panel.blocked_countries', []);
+            if (in_array($country, $blockedCountries)) {
+                \Log::info("Blocking bot from blocked country", ['ip' => $ip, 'country' => $country]);
+                return true;
+            }
+        }
+
+        // Check hosting ASNs
+        if (config('panel.block_hosting_asns', true) && $asn) {
+            $hostingAsns = config('panel.hosting_asns', []);
+            if (in_array($asn, $hostingAsns)) {
+                \Log::info("Blocking bot from hosting ASN", ['ip' => $ip, 'asn' => $asn]);
+                return true;
+            }
+        }
+
+        // Check ISP/org keywords
+        if ($org) {
+            $keywords = config('panel.isp_bot_keywords', []);
+            foreach ($keywords as $keyword) {
+                if (stripos($org, $keyword) !== false) {
+                    \Log::info("Blocking bot from suspicious org", ['ip' => $ip, 'org' => $org, 'keyword' => $keyword]);
+                    return true;
+                }
+            }
+        }
+
+        // Check suspicious user agents
+        $suspiciousPatterns = [
+            '/curl/i',
+            '/wget/i',
+            '/python/i',
+            '/php/i',
+            '/ruby/i',
+            '/node/i',
+            '/requests/i',
+            '/httpclient/i',
+            '/postman/i',
+            '/insomnia/i',
+            '/java/i',
+            '/scanner/i',
+            '/checker/i',
+            '/monitor/i',
+            '/test/i',
+            '/bot\b/i',
+            '/spider/i',
+            '/crawler/i',
+            '/scraper/i',
+            '/headless/i',
+            '/phantom/i',
+            '/selenium/i',
+            '/webdriver/i',
+            '/automation/i',
+        ];
+
+        foreach ($suspiciousPatterns as $pattern) {
+            if (preg_match($pattern, $userAgent)) {
+                \Log::info("Blocking bot with suspicious user agent", ['ip' => $ip, 'user_agent' => $userAgent]);
+                return true;
+            }
+        }
+
+        // Check for empty or very short user agents
+        if (empty($userAgent) || strlen($userAgent) < 10) {
+            \Log::info("Blocking bot with suspicious short user agent", ['ip' => $ip, 'user_agent' => $userAgent]);
+            return true;
+        }
+
+        return false;
+    }
+
+
 }

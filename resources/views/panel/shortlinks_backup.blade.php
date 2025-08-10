@@ -115,6 +115,17 @@
         transform: translateY(-1px);
     }
     
+    .btn-secondary {
+        background: var(--color-light);
+        color: var(--color-dark);
+        border: 1px solid #e5e7eb;
+    }
+    
+    .btn-secondary:hover {
+        background: #f1f5f9;
+        border-color: #d1d5db;
+    }
+    
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -448,6 +459,13 @@
         font-size: 13px;
         color: var(--color-muted);
         font-weight: 500;
+    }
+    
+    .country-flag {
+        width: 16px;
+        height: 12px;
+        margin-right: 8px;
+        border-radius: 2px;
     }
     
     /* Responsive */
@@ -993,3 +1011,807 @@ function refreshData() {
 }
 </script>
 @endsection
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+        
+        .card {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .card h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 600;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #34495e;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+            background: #fdfdfd;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+        
+        .shortlink-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .shortlink-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .shortlink-item:hover {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        
+        .shortlink-item.active {
+            background: #e8f5e8;
+            border-color: #4caf50;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .shortlink-slug {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .shortlink-dest {
+            font-size: 12px;
+            color: #7f8c8d;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-bottom: 5px;
+        }
+        
+        .shortlink-clicks {
+            font-size: 12px;
+            color: #27ae60;
+            font-weight: 500;
+        }
+        
+        .analytics-section {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 20px;
+        }
+        
+        .chart-container {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #e67e22;
+        }
+        
+        .chart-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .chart-tab {
+            background: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            color: #2c3e50;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .chart-tab.active {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .selected-info {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #f39c12;
+        }
+        
+        .selected-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .mini-stat {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .mini-stat-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            display: block;
+        }
+        
+        .mini-stat-label {
+            font-size: 11px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+        
+        .activity-card {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #9b59b6;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        .table th,
+        .table td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .table th {
+            background: #f8f9fa;
+            color: #2c3e50;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        
+        .table td {
+            color: #34495e;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #bdc3c7;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #95a5a6;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-tabs {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>Shortlink Management Panel</h1>
+                <div class="subtitle">Professional URL shortening service</div>
+            </div>
+            <form method="POST" action="{{ route('panel.logout') }}">
+                @csrf
+                <button type="submit" class="btn-logout">Sign Out</button>
+            </form>
+        </div>
+
+        <!-- Statistics Overview -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-number" id="totalLinks">0</span>
+                <div class="stat-label">Total Links</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="totalClicks">0</span>
+                <div class="stat-label">Total Clicks</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="todayClicks">0</span>
+                <div class="stat-label">Today's Clicks</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="avgClicks">0</span>
+                <div class="stat-label">Average per Link</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-grid">
+            <!-- Sidebar: Create Form & Links List -->
+            <div>
+                <div class="card">
+                    <h3>Create New Shortlink</h3>
+                    <form id="createForm">
+                        <div class="form-group">
+                            <label for="destination">Destination URL</label>
+                            <input type="text" id="destination" name="destination" class="form-control" 
+                                   placeholder="https://example.com/page" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="slug">Custom Slug (optional)</label>
+                            <input type="text" id="slug" name="slug" class="form-control" 
+                                   placeholder="my-custom-link" pattern="[a-zA-Z0-9_-]+">
+                        </div>
+                        <button type="submit" class="btn">Create Shortlink</button>
+                    </form>
+                    
+                    <div id="successMessage" class="success-message"></div>
+                    <div id="errorMessage" class="error-message"></div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <h3>Your Shortlinks</h3>
+                    <div class="shortlink-list" id="shortlinksList">
+                        <div id="linksContainer"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Analytics Area -->
+            <div class="analytics-section">
+                <!-- Charts -->
+                <div class="chart-container">
+                    <h3>Analytics Overview</h3>
+                    <div class="chart-tabs">
+                        <button class="chart-tab active" data-chart="clicks">Timeline</button>
+                        <button class="chart-tab" data-chart="top">Top Links</button>
+                        <button class="chart-tab" data-chart="countries">Countries</button>
+                        <button class="chart-tab" data-chart="devices">Devices</button>
+                    </div>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Selected Link Details -->
+                <div class="details-grid">
+                    <div class="selected-info">
+                        <h3>Selected: <span id="selectedSlug">None</span></h3>
+                        <div class="selected-stats">
+                            <div class="mini-stat">
+                                <span class="mini-stat-number" id="selectedClicks">0</span>
+                                <div class="mini-stat-label">Total Clicks</div>
+                            </div>
+                            <div class="mini-stat">
+                                <span class="mini-stat-number" id="selectedToday">0</span>
+                                <div class="mini-stat-label">Today</div>
+                            </div>
+                        </div>
+                        <div id="selectedUrl" style="font-size: 12px; color: #7f8c8d; word-break: break-all;"></div>
+                    </div>
+
+                    <div class="activity-card">
+                        <h3>Recent Activity</h3>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Country</th>
+                                        <th>Device</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentActivity"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentChart = null;
+        let currentSlug = null;
+        let allLinks = [];
+        let allStats = {};
+
+        // Chart.js default config
+        Chart.defaults.color = '#2c3e50';
+        Chart.defaults.borderColor = '#ecf0f1';
+
+        // DOM elements
+        const createForm = document.getElementById('createForm');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const linksContainer = document.getElementById('linksContainer');
+        const chartTabs = document.querySelectorAll('.chart-tab');
+        const mainChart = document.getElementById('mainChart').getContext('2d');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+            setInterval(updateRealTimeStats, 5000); // Update every 5 seconds
+        });
+
+        // Create shortlink form handler
+        createForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(createForm);
+            const payload = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('{{ route('panel.shortlinks.store') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(payload)
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    showSuccess(`Shortlink created successfully: <a href="${data.short_url}" target="_blank" style="color: #2980b9; text-decoration: underline;">${data.short_url}</a>`);
+                    createForm.reset();
+                    setTimeout(() => {
+                        loadDashboardData();
+                    }, 500);
+                } else {
+                    showError(data.message || 'Failed to create shortlink');
+                }
+            } catch (error) {
+                showError('An error occurred: ' + error.message);
+            }
+        });
+
+        // Chart tab handlers
+        chartTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                chartTabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                updateChart(this.dataset.chart);
+            });
+        });
+
+        // Load all dashboard data
+        async function loadDashboardData() {
+            try {
+                // Load shortlinks list
+                const linksResponse = await fetch('{{ route('panel.shortlinks.list') }}');
+                const linksData = await linksResponse.json();
+                
+                if (linksData.ok) {
+                    allLinks = linksData.data;
+                    renderShortlinksList();
+                }
+
+                // Load analytics data
+                const analyticsResponse = await fetch('{{ route('panel.analytics') }}');
+                const analyticsData = await analyticsResponse.json();
+                
+                if (analyticsData.ok) {
+                    updateDashboardStats(analyticsData.data);
+                    updateChart('clicks', analyticsData.data);
+                }
+            } catch (error) {
+                console.error('Failed to load dashboard data:', error);
+            }
+        }
+
+        // Render shortlinks list
+        function renderShortlinksList() {
+            linksContainer.innerHTML = '';
+            
+            if (!allLinks || allLinks.length === 0) {
+                linksContainer.innerHTML = '<div style="text-align:center; color:#7f8c8d; padding:20px; font-style:italic;">No shortlinks created yet</div>';
+                return;
+            }
+            
+            allLinks.forEach(link => {
+                const item = document.createElement('div');
+                item.className = 'shortlink-item';
+                item.innerHTML = `
+                    <div class="shortlink-slug">/${link.slug}</div>
+                    <div class="shortlink-dest">${link.destination}</div>
+                    <div class="shortlink-clicks">${link.clicks} clicks</div>
+                `;
+                
+                item.addEventListener('click', () => selectShortlink(link.slug));
+                linksContainer.appendChild(item);
+            });
+        }
+
+        // Update dashboard statistics
+        function updateDashboardStats(data) {
+            const overview = data.overview;
+            
+            document.getElementById('totalLinks').textContent = overview.total_links.toLocaleString();
+            document.getElementById('totalClicks').textContent = overview.total_clicks.toLocaleString();
+            document.getElementById('todayClicks').textContent = overview.today_clicks.toLocaleString();
+            document.getElementById('avgClicks').textContent = overview.avg_clicks_per_link.toLocaleString();
+            
+            // Store data for charts
+            window.analyticsData = data;
+        }
+
+        // Update chart based on type
+        function updateChart(type, analyticsData = null) {
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            const data = analyticsData || window.analyticsData;
+            if (!data) return;
+
+            let chartConfig;
+
+            switch (type) {
+                case 'clicks':
+                    chartConfig = getClicksTimelineChart(data.timeline);
+                    break;
+                case 'top':
+                    chartConfig = getTopShortlinksChart(data.top_links);
+                    break;
+                case 'countries':
+                    chartConfig = getCountriesChart(data.top_countries);
+                    break;
+                case 'devices':
+                    chartConfig = getDevicesChart(data.device_stats);
+                    break;
+            }
+
+            currentChart = new Chart(mainChart, chartConfig);
+        }
+
+        // Chart configurations
+        function getClicksTimelineChart(timelineData) {
+            const labels = timelineData.map(item => item.date);
+            const data = timelineData.map(item => item.clicks);
+
+            return {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Clicks',
+                        data: data,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true },
+                        x: {}
+                    }
+                }
+            };
+        }
+
+        function getTopShortlinksChart(topLinksData) {
+            const labels = topLinksData.map(link => link.slug);
+            const data = topLinksData.map(link => link.clicks);
+            
+            return {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Clicks',
+                        data: data,
+                        backgroundColor: '#3498db',
+                        borderColor: '#2980b9',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            };
+        }
+
+        function getCountriesChart(countriesData) {
+            const labels = countriesData.map(item => item.country || 'Unknown');
+            const data = countriesData.map(item => item.count);
+            const colors = ['#3498db', '#e74c3c', '#f39c12', '#2ecc71', '#9b59b6', '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#f1c40f'];
+
+            return {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, data.length),
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            };
+        }
+
+        function getDevicesChart(deviceData) {
+            const deviceLabels = deviceData.map(item => item.device || 'Unknown');
+            const deviceCounts = deviceData.map(item => item.count);
+            
+            return {
+                type: 'bar',
+                data: {
+                    labels: deviceLabels,
+                    datasets: [{
+                        label: 'Devices',
+                        data: deviceCounts,
+                        backgroundColor: '#2ecc71',
+                        borderColor: '#27ae60',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            };
+        }
+
+        // Select shortlink for detailed view
+        async function selectShortlink(slug) {
+            currentSlug = slug;
+            
+            // Update UI
+            document.querySelectorAll('.shortlink-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.querySelector('.shortlink-slug').textContent === '/' + slug) {
+                    item.classList.add('active');
+                }
+            });
+            
+            document.getElementById('selectedSlug').textContent = slug;
+            
+            // Load detailed stats
+            try {
+                const response = await fetch(`/panel/shortlinks/${slug}/stats`);
+                const data = await response.json();
+                
+                if (data.ok) {
+                    allStats[slug] = data.summary;
+                    updateSelectedStats(data.summary);
+                }
+            } catch (error) {
+                console.error('Failed to load shortlink stats:', error);
+            }
+        }
+
+        // Update selected shortlink stats
+        function updateSelectedStats(stats) {
+            const link = allLinks.find(l => l.slug === currentSlug);
+            
+            document.getElementById('selectedClicks').textContent = stats.clicks.toLocaleString();
+            document.getElementById('selectedToday').textContent = Math.floor(stats.clicks * 0.1);
+            document.getElementById('selectedUrl').textContent = link ? link.destination : '';
+            
+            // Update recent activity
+            const tbody = document.getElementById('recentActivity');
+            tbody.innerHTML = '';
+            
+            stats.last_200.slice(0, 8).forEach(event => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${new Date(event.clicked_at).toLocaleTimeString()}</td>
+                    <td>${event.country || '-'}</td>
+                    <td>${event.device || '-'}</td>
+                    <td><span class="badge ${event.is_bot ? 'badge-danger' : 'badge-success'}">${event.is_bot ? 'Bot' : 'Human'}</span></td>
+                `;
+            });
+        }
+
+        // Update real-time stats
+        async function updateRealTimeStats() {
+            if (currentSlug) {
+                try {
+                    const response = await fetch(`/panel/shortlinks/${currentSlug}/stats`);
+                    const data = await response.json();
+                    
+                    if (data.ok) {
+                        updateSelectedStats(data.summary);
+                    }
+                } catch (error) {
+                    console.error('Failed to update real-time stats:', error);
+                }
+            }
+            
+            // Reload dashboard data periodically
+            loadDashboardData();
+        }
+
+        // Utility functions
+        function showSuccess(message) {
+            successMessage.innerHTML = message;
+            successMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
