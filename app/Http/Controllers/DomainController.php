@@ -13,7 +13,7 @@ class DomainController extends Controller
      */
     public function index()
     {
-        $domains = Domain::all();
+        $domains = Domain::withCount('shortlinks')->get();
         return view('panel.domains', compact('domains'));
     }
 

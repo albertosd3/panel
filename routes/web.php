@@ -52,7 +52,7 @@ Route::middleware('panel.auth')->group(function () {
 });
 
 // Domain management routes (authenticated)
-Route::middleware('panel')->prefix('panel')->group(function () {
+Route::middleware('panel.auth')->prefix('panel')->group(function () {
     Route::get('/domains', [App\Http\Controllers\DomainController::class, 'index'])->name('panel.domains');
     Route::post('/domains', [App\Http\Controllers\DomainController::class, 'store'])->name('panel.domains.store');
     Route::put('/domains/{domain}', [App\Http\Controllers\DomainController::class, 'update'])->name('panel.domains.update');
