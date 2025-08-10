@@ -98,7 +98,8 @@ class ShortlinkController extends Controller
         $ip = $request->headers->get('CF-Connecting-IP') ?: $request->ip();
         if (BlockedIp::where('ip', $ip)->exists()) abort(403);
 
-        $crawler = new CrawlerDetect($request->headers->all(), $request->server->all());
+        // Initialize crawler detector with headers and proper User-Agent string
+        $crawler = new CrawlerDetect($request->headers->all(), (string) $request->userAgent());
         $isBot = $crawler->isCrawler();
         if ($isBot && config('panel.block_bots')) {
             if (config('panel.auto_block_bot_ips')) {
