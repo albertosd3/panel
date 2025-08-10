@@ -30,6 +30,24 @@ Route::middleware('panel.auth')->group(function () {
     Route::get('/panel/shortlinks/{slug}/stats', [ShortlinkController::class, 'stats'])->name('panel.shortlinks.stats');
 
     Route::post('/panel/logout', [PanelAuthController::class, 'logout'])->name('panel.logout');
+    Route::post('/logout', [PanelAuthController::class, 'logout'])->name('logout');
+    
+    // API routes for AJAX calls
+    Route::prefix('api')->group(function () {
+        Route::get('/links', [ShortlinkController::class, 'list'])->name('api.links');
+        Route::get('/analytics', [ShortlinkController::class, 'analytics'])->name('api.analytics');
+        Route::post('/create', [ShortlinkController::class, 'store'])->name('api.create');
+        Route::get('/debug', function () {
+            return response()->json([
+                'ok' => true,
+                'message' => 'API is working',
+                'time' => now(),
+                'csrf' => csrf_token(),
+                'authenticated' => session('panel_authenticated', false),
+                'session_id' => session()->getId()
+            ]);
+        });
+    });
 });
 
 // Public redirect route (keep at bottom, after other routes)

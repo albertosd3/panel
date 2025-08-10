@@ -964,8 +964,7 @@ async function createShortlink() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({ destination, slug })
         });
@@ -980,7 +979,7 @@ async function createShortlink() {
             // Show success message
             alert(`Shortlink created successfully!\nSlug: ${data.data.slug}\nURL: ${window.location.origin}/${data.data.slug}`);
         } else {
-            alert(`Error: ${data.message || data.error || 'Failed to create shortlink'}`);
+            alert(`Error: ${data.error || 'Failed to create shortlink'}`);
         }
     } catch (error) {
         console.error('Failed to create shortlink:', error);
