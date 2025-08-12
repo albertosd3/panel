@@ -38,6 +38,8 @@ Route::middleware('panel.auth')->group(function () {
         Route::get('/analytics', [ShortlinkController::class, 'analytics'])->name('api.analytics');
         Route::post('/create', [ShortlinkController::class, 'store'])->name('api.create');
         Route::get('/domains', [App\Http\Controllers\DomainController::class, 'apiList'])->name('api.domains');
+        Route::post('/reset-visitors/{slug}', [ShortlinkController::class, 'resetVisitors'])->name('api.reset-visitors');
+        Route::post('/reset-all-visitors', [ShortlinkController::class, 'resetAllVisitors'])->name('api.reset-all-visitors');
         Route::get('/debug', function () {
             return response()->json([
                 'ok' => true,

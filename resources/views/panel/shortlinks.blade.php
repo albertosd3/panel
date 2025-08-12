@@ -363,6 +363,12 @@
         background: #f8fafc;
     }
     
+    .links-table th:last-child,
+    .links-table td:last-child {
+        text-align: center;
+        width: 100px;
+    }
+    
     .link-slug {
         font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
         background: #f3f4f6;
@@ -419,6 +425,87 @@
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+    
+    /* Success Animation */
+    @keyframes checkmark {
+        0% { 
+            transform: scale(0);
+            opacity: 0;
+        }
+        50% { 
+            transform: scale(1.2);
+            opacity: 1;
+        }
+        100% { 
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes fade-in {
+        0% { opacity: 0; transform: translateY(-10px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    
+    .success-animation {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #10b981;
+        font-weight: 600;
+        animation: fade-in 0.3s ease-out;
+    }
+    
+    .success-checkmark {
+        font-size: 18px;
+        animation: checkmark 0.6s ease-out;
+    }
+    
+    .loading-create {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+    
+    .loading-create .loading-spinner {
+        width: 16px;
+        height: 16px;
+        border-width: 2px;
+    }
+    
+    /* Reset buttons styling */
+    .reset-buttons .btn {
+        margin-left: 8px;
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+    
+    .btn-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        border: 1px solid #d97706;
+    }
+    
+    .btn-warning:hover {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+        transform: translateY(-1px);
+    }
+    
+    .btn-danger-sm {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        border: 1px solid #dc2626;
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 4px;
+    }
+    
+    .btn-danger-sm:hover {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        transform: translateY(-1px);
     }
     
     /* Sidebar Styles */
@@ -625,8 +712,13 @@
 
             <!-- Links Table -->
             <div class="paper content-card" style="margin-top: 24px;">
-                <div class="card-header">
-                    <h2 class="card-title">Recent Shortlinks</h2>
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 class="card-title" style="margin: 0;">Recent Shortlinks</h2>
+                    <div class="reset-buttons">
+                        <button id="resetAllVisitorsBtn" class="btn btn-warning btn-sm" title="Reset all visitor counts">
+                            🔄 Reset All Visitors
+                        </button>
+                    </div>
                 </div>
                 <div id="links-container">
                     <div class="loading">
@@ -945,6 +1037,7 @@ function displayLinks(links) {
                     <th>Clicks</th>
                     <th>Status</th>
                     <th>Created</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -955,6 +1048,11 @@ function displayLinks(links) {
                         <td><span class="clicks-badge">${link.clicks}</span></td>
                         <td><span class="status-${link.active ? 'active' : 'inactive'}">${link.active ? 'Active' : 'Inactive'}</span></td>
                         <td>${new Date(link.created_at).toLocaleDateString('id-ID')}</td>
+                        <td>
+                            <button class="btn-danger-sm" onclick="resetVisitors('${link.slug}')" title="Reset visitor count">
+                                🔄 Reset
+                            </button>
+                        </td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -971,6 +1069,14 @@ async function createShortlink() {
     const slug = formData.get('slug');
     const domain_id = formData.get('domain_id');
     
+    // Get submit button
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.innerHTML;
+    
+    // Show loading animation
+    submitBtn.innerHTML = '<div class="loading-create"><div class="loading-spinner"></div>Creating...</div>';
+    submitBtn.disabled = true;
+    
     try {
         const response = await fetch('/api/create', {
             method: 'POST',
@@ -985,17 +1091,32 @@ async function createShortlink() {
         const data = await response.json();
         
         if (data.ok) {
+            // Show success animation
+            submitBtn.innerHTML = '<div class="success-animation"><span class="success-checkmark">✅</span>Created Successfully!</div>';
+            
             form.reset();
             loadLinks();
             loadAnalytics();
             
-            // Show success message
-            alert(`Shortlink created successfully!\nSlug: ${data.data.slug}\nURL: ${data.data.full_url || window.location.origin + '/' + data.data.slug}`);
+            // Show success alert with better formatting
+            setTimeout(() => {
+                alert(`Shortlink created successfully!\n\nSlug: ${data.data.slug}\nURL: ${data.data.full_url || window.location.origin + '/' + data.data.slug}`);
+                
+                // Reset button after success
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+            }, 1500);
         } else {
+            // Reset button on error
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.disabled = false;
             alert(`Error: ${data.message || data.error || 'Failed to create shortlink'}`);
         }
     } catch (error) {
         console.error('Failed to create shortlink:', error);
+        // Reset button on error
+        submitBtn.innerHTML = originalBtnText;
+        submitBtn.disabled = false;
         alert('Failed to create shortlink. Please try again.');
     }
 }
@@ -1033,5 +1154,90 @@ function refreshData() {
     loadAnalytics();
     loadLinks();
 }
+
+// Reset visitor functions
+async function resetVisitors(slug) {
+    if (!confirm(`Are you sure you want to reset visitor count for "${slug}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/reset-visitors/${slug}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+            alert(`✅ ${data.message}`);
+            loadLinks();
+            loadAnalytics();
+        } else {
+            alert(`❌ Error: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Failed to reset visitors:', error);
+        alert('❌ Failed to reset visitor count. Please try again.');
+    }
+}
+
+async function resetAllVisitors() {
+    if (!confirm('Are you sure you want to reset ALL visitor counts?\n\nThis will reset the visitor count for ALL shortlinks.\nThis action cannot be undone.')) {
+        return;
+    }
+    
+    const btn = document.getElementById('resetAllVisitorsBtn');
+    const originalText = btn.innerHTML;
+    
+    // Show loading
+    btn.innerHTML = '🔄 Resetting...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/reset-all-visitors', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+            btn.innerHTML = '✅ Reset Complete!';
+            alert(`✅ ${data.message}`);
+            loadLinks();
+            loadAnalytics();
+            
+            // Reset button after success
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 2000);
+        } else {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            alert(`❌ Error: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Failed to reset all visitors:', error);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        alert('❌ Failed to reset visitor counts. Please try again.');
+    }
+}
+
+// Add event listener for reset all button
+document.addEventListener('DOMContentLoaded', function() {
+    // Add existing event listeners...
+    
+    // Reset all visitors button
+    document.getElementById('resetAllVisitorsBtn').addEventListener('click', resetAllVisitors);
+});
 </script>
 @endsection

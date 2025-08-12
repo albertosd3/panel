@@ -606,5 +606,54 @@ class ShortlinkController extends Controller
         return false;
     }
 
+    /**
+     * Reset visitor count for a specific shortlink
+     */
+    public function resetVisitors(Request $request, $slug)
+    {
+        try {
+            $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
+            
+            // Delete all events for this shortlink
+            ShortlinkEvent::where('shortlink_id', $shortlink->id)->delete();
+            
+            // Reset clicks count
+            $shortlink->update(['clicks' => 0]);
+            
+            return response()->json([
+                'ok' => true,
+                'message' => "Visitor count reset for shortlink '{$slug}'"
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Failed to reset visitor count: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reset visitor count for all shortlinks
+     */
+    public function resetAllVisitors(Request $request)
+    {
+        try {
+            // Delete all shortlink events
+            ShortlinkEvent::truncate();
+            
+            // Reset all shortlinks clicks to 0
+            Shortlink::query()->update(['clicks' => 0]);
+            
+            return response()->json([
+                'ok' => true,
+                'message' => 'All visitor counts have been reset'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Failed to reset all visitor counts: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
 }
