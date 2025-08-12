@@ -35,7 +35,7 @@
         transform: translateX(-50%);
         width: 80px;
         height: 80px;
-        background: var(--color-white);
+        background: var(--color-surface);
         border-radius: 50%;
         border: 4px solid var(--color-primary);
         display: flex;
@@ -63,7 +63,7 @@
     }
     
     .letter-content {
-        background: var(--color-white);
+        background: var(--color-surface);
         padding: 40px 32px 32px;
         margin-top: -40px;
         border-radius: 0 0 12px 12px;
@@ -98,19 +98,20 @@
         letter-spacing: 4px;
         font-weight: 600;
         padding: 16px;
-        background: #f8fafc;
-        border: 2px solid #e5e7eb;
+        background: var(--color-bg-secondary);
+        border: 2px solid var(--color-border);
+        color: var(--color-text-primary);
     }
     
     .pin-input:focus {
-        background: var(--color-white);
+        background: var(--color-bg-tertiary);
         border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
     }
     
     .access-info {
-        background: #f8fafc;
-        border: 1px solid #e5e7eb;
+        background: var(--color-bg-tertiary);
+        border: 1px solid var(--color-border);
         border-radius: 8px;
         padding: 16px;
         margin-top: 24px;
@@ -119,13 +120,13 @@
     
     .access-info-title {
         font-weight: 600;
-        color: var(--color-dark);
+        color: var(--color-text-primary);
         margin-bottom: 4px;
         font-size: 13px;
     }
     
     .access-info-text {
-        color: var(--color-muted);
+        color: var(--color-text-muted);
         font-size: 12px;
         line-height: 1.5;
     }

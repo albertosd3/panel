@@ -4,11 +4,11 @@
 
 @push('styles')
 <style>
-    /* Dashboard-specific styles */
+    /* Dashboard-specific styles - Dark Theme */
     .envelope-container {
         padding: 20px;
         min-height: 100vh;
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
     }
     
     .dashboard-wrapper {
@@ -17,12 +17,12 @@
     }
     
     .dashboard-header {
-        background: var(--color-white);
+        background: var(--color-surface);
         border-radius: 12px;
         padding: 24px 32px;
         margin-bottom: 24px;
         box-shadow: var(--shadow-lg);
-        border: 1px solid rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--color-border);
         position: relative;
         overflow: hidden;
     }
@@ -47,13 +47,13 @@
         font-family: var(--font-serif);
         font-size: 32px;
         font-weight: 600;
-        color: var(--color-dark);
+        color: var(--color-text-primary);
         margin-bottom: 4px;
         letter-spacing: -0.025em;
     }
     
     .header-subtitle {
-        color: var(--color-muted);
+        color: var(--color-text-muted);
         font-size: 14px;
         display: flex;
         align-items: center;
@@ -97,7 +97,7 @@
     
     .btn-primary {
         background: var(--color-primary);
-        color: var(--color-white);
+        color: white;
     }
     
     .btn-primary:hover {
@@ -107,7 +107,7 @@
     
     .btn-danger {
         background: var(--color-danger);
-        color: var(--color-white);
+        color: white;
     }
     
     .btn-danger:hover {
@@ -123,11 +123,11 @@
     }
     
     .stat-card {
-        background: var(--color-white);
+        background: var(--color-surface);
         border-radius: 12px;
         padding: 24px;
         box-shadow: var(--shadow-md);
-        border: 1px solid rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--color-border);
         transition: all 0.2s ease;
         position: relative;
         overflow: hidden;
@@ -157,13 +157,13 @@
     .stat-info h3 {
         font-size: 28px;
         font-weight: 700;
-        color: var(--color-dark);
+        color: var(--color-text-primary);
         margin-bottom: 4px;
         font-family: var(--font-primary);
     }
     
     .stat-info p {
-        color: var(--color-muted);
+        color: var(--color-text-muted);
         font-size: 13px;
         font-weight: 500;
         text-transform: uppercase;
@@ -179,7 +179,7 @@
         justify-content: center;
         font-size: 20px;
         background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-        color: var(--color-white);
+        color: white;
     }
     
     .main-grid {
@@ -190,11 +190,11 @@
     }
     
     .content-card {
-        background: var(--color-white);
+        background: var(--color-surface);
         border-radius: 12px;
         padding: 24px;
         box-shadow: var(--shadow-md);
-        border: 1px solid rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--color-border);
         position: relative;
         overflow: hidden;
     }
@@ -215,14 +215,14 @@
         align-items: center;
         margin-bottom: 20px;
         padding-bottom: 16px;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--color-border);
     }
     
     .card-title {
         font-family: var(--font-serif);
         font-size: 20px;
         font-weight: 600;
-        color: var(--color-dark);
+        color: var(--color-text-primary);
     }
     
     .analytics-controls {
@@ -232,9 +232,9 @@
     
     .period-btn {
         padding: 6px 12px;
-        border: 1px solid #e5e7eb;
-        background: var(--color-white);
-        color: var(--color-muted);
+        border: 1px solid var(--color-border);
+        background: var(--color-bg-secondary);
+        color: var(--color-text-muted);
         border-radius: 6px;
         font-size: 12px;
         font-weight: 500;
@@ -245,12 +245,12 @@
     .period-btn.active {
         background: var(--color-primary);
         border-color: var(--color-primary);
-        color: var(--color-white);
+        color: white;
     }
     
     .period-btn:hover:not(.active) {
-        background: var(--color-light);
-        border-color: #d1d5db;
+        background: var(--color-surface-hover);
+        border-color: var(--color-border-light);
     }
     
     .chart-container {
@@ -264,7 +264,7 @@
         grid-template-columns: 1fr 1fr;
         gap: 16px;
         padding: 16px;
-        background: #f8fafc;
+        background: var(--color-bg-tertiary);
         border-radius: 8px;
         margin-top: 16px;
     }
@@ -276,12 +276,12 @@
     .comparison-value {
         font-size: 18px;
         font-weight: 600;
-        color: var(--color-dark);
+        color: var(--color-text-primary);
     }
     
     .comparison-label {
         font-size: 12px;
-        color: var(--color-muted);
+        color: var(--color-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-top: 4px;
@@ -305,7 +305,7 @@
     .form-label {
         display: block;
         font-weight: 500;
-        color: var(--color-dark);
+        color: var(--color-text-secondary);
         margin-bottom: 6px;
         font-size: 13px;
     }
@@ -313,10 +313,11 @@
     .form-input {
         width: 100%;
         padding: 12px 14px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--color-border);
         border-radius: 8px;
         font-size: 14px;
-        background: var(--color-white);
+        background: var(--color-bg-secondary);
+        color: var(--color-text-primary);
         transition: all 0.2s ease;
         font-family: var(--font-primary);
     }
@@ -324,11 +325,12 @@
     .form-input:focus {
         outline: none;
         border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        background: var(--color-bg-tertiary);
     }
     
     .form-input::placeholder {
-        color: #9ca3af;
+        color: var(--color-text-muted);
     }
     
     /* Links Table */
@@ -342,13 +344,13 @@
     .links-table td {
         padding: 12px;
         text-align: left;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--color-border);
     }
     
     .links-table th {
-        background: #f8fafc;
+        background: var(--color-bg-tertiary);
         font-weight: 600;
-        color: var(--color-dark);
+        color: var(--color-text-primary);
         font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -356,11 +358,11 @@
     
     .links-table td {
         font-size: 13px;
-        color: var(--color-dark);
+        color: var(--color-text-primary);
     }
     
     .links-table tr:hover {
-        background: #f8fafc;
+        background: var(--color-surface-hover);
     }
     
     .links-table th:last-child,
@@ -371,7 +373,7 @@
     
     .link-slug {
         font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
-        background: #f3f4f6;
+        background: var(--color-bg-tertiary);
         padding: 4px 6px;
         border-radius: 4px;
         font-size: 11px;
@@ -384,12 +386,12 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: var(--color-muted);
+        color: var(--color-text-muted);
     }
     
     .clicks-badge {
         background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-        color: var(--color-white);
+        color: white;
         padding: 4px 8px;
         border-radius: 12px;
         font-size: 11px;
