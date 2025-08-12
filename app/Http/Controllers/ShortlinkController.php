@@ -656,4 +656,30 @@ class ShortlinkController extends Controller
         }
     }
 
+    /**
+     * Delete a shortlink
+     */
+    public function destroy(Request $request, $slug)
+    {
+        try {
+            $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
+            
+            // Delete all associated events first
+            ShortlinkEvent::where('shortlink_id', $shortlink->id)->delete();
+            
+            // Delete the shortlink
+            $shortlink->delete();
+            
+            return response()->json([
+                'ok' => true,
+                'message' => "Shortlink '{$slug}' deleted successfully"
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Failed to delete shortlink: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

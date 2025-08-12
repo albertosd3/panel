@@ -40,6 +40,7 @@ Route::middleware('panel.auth')->group(function () {
         Route::get('/domains', [App\Http\Controllers\DomainController::class, 'apiList'])->name('api.domains');
         Route::post('/reset-visitors/{slug}', [ShortlinkController::class, 'resetVisitors'])->name('api.reset-visitors');
         Route::post('/reset-all-visitors', [ShortlinkController::class, 'resetAllVisitors'])->name('api.reset-all-visitors');
+        Route::delete('/delete/{slug}', [ShortlinkController::class, 'destroy'])->name('api.delete-shortlink');
         Route::get('/debug', function () {
             return response()->json([
                 'ok' => true,

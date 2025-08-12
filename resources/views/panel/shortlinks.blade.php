@@ -430,12 +430,29 @@
     /* Success Animation */
     @keyframes checkmark {
         0% { 
-            transform: scale(0);
+            transform: scale(0) rotate(45deg);
             opacity: 0;
         }
         50% { 
-            transform: scale(1.2);
+            transform: scale(1.3) rotate(45deg);
             opacity: 1;
+        }
+        100% { 
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes bounce-in {
+        0% { 
+            transform: scale(0.3);
+            opacity: 0;
+        }
+        50% { 
+            transform: scale(1.05);
+        }
+        70% { 
+            transform: scale(0.9);
         }
         100% { 
             transform: scale(1);
@@ -454,12 +471,13 @@
         gap: 8px;
         color: #10b981;
         font-weight: 600;
-        animation: fade-in 0.3s ease-out;
+        animation: bounce-in 0.6s ease-out;
     }
     
     .success-checkmark {
         font-size: 18px;
-        animation: checkmark 0.6s ease-out;
+        animation: checkmark 0.8s ease-out;
+        filter: drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3));
     }
     
     .loading-create {
@@ -506,6 +524,76 @@
     .btn-danger-sm:hover {
         background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
         transform: translateY(-1px);
+    }
+    
+    .btn-delete-sm {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        border: 1px solid #dc2626;
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-left: 4px;
+    }
+    
+    .btn-delete-sm:hover {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        transform: translateY(-1px);
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+    }
+    
+    /* Notification System */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 1000;
+        min-width: 300px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        animation: slideInRight 0.3s ease-out;
+    }
+    
+    .notification.success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    .notification.error {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    .notification.warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+    
+    @keyframes slideInRight {
+        0% { 
+            opacity: 0; 
+            transform: translateX(100%); 
+        }
+        100% { 
+            opacity: 1; 
+            transform: translateX(0); 
+        }
+    }
+    
+    @keyframes slideOutRight {
+        0% { 
+            opacity: 1; 
+            transform: translateX(0); 
+        }
+        100% { 
+            opacity: 0; 
+            transform: translateX(100%); 
+        }
     }
     
     /* Sidebar Styles */
@@ -787,6 +875,31 @@
 let currentPeriod = 'week';
 let analyticsChart = null;
 
+// Notification system
+function showNotification(message, type = 'success') {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(notification => notification.remove());
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 4000);
+}
+
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
     initializeTime();
@@ -1049,9 +1162,14 @@ function displayLinks(links) {
                         <td><span class="status-${link.active ? 'active' : 'inactive'}">${link.active ? 'Active' : 'Inactive'}</span></td>
                         <td>${new Date(link.created_at).toLocaleDateString('id-ID')}</td>
                         <td>
-                            <button class="btn-danger-sm" onclick="resetVisitors('${link.slug}')" title="Reset visitor count">
-                                🔄 Reset
-                            </button>
+                            <div class="action-buttons">
+                                <button class="btn-danger-sm" onclick="resetVisitors('${link.slug}')" title="Reset visitor count">
+                                    🔄
+                                </button>
+                                <button class="btn-delete-sm" onclick="deleteShortlink('${link.slug}')" title="Delete shortlink">
+                                    🗑️
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `).join('')}
@@ -1098,26 +1216,25 @@ async function createShortlink() {
             loadLinks();
             loadAnalytics();
             
-            // Show success alert with better formatting
+            // Reset button after success without alert
             setTimeout(() => {
-                alert(`Shortlink created successfully!\n\nSlug: ${data.data.slug}\nURL: ${data.data.full_url || window.location.origin + '/' + data.data.slug}`);
-                
-                // Reset button after success
                 submitBtn.innerHTML = originalBtnText;
                 submitBtn.disabled = false;
-            }, 1500);
+            }, 2000);
         } else {
             // Reset button on error
             submitBtn.innerHTML = originalBtnText;
             submitBtn.disabled = false;
-            alert(`Error: ${data.message || data.error || 'Failed to create shortlink'}`);
+            
+            // Show error notification instead of alert
+            showNotification(`Error: ${data.message || data.error || 'Failed to create shortlink'}`, 'error');
         }
     } catch (error) {
         console.error('Failed to create shortlink:', error);
         // Reset button on error
         submitBtn.innerHTML = originalBtnText;
         submitBtn.disabled = false;
-        alert('Failed to create shortlink. Please try again.');
+        showNotification('Failed to create shortlink. Please try again.', 'error');
     }
 }
 
@@ -1173,15 +1290,15 @@ async function resetVisitors(slug) {
         const data = await response.json();
         
         if (data.ok) {
-            alert(`✅ ${data.message}`);
+            showNotification(`✅ ${data.message}`, 'success');
             loadLinks();
             loadAnalytics();
         } else {
-            alert(`❌ Error: ${data.message}`);
+            showNotification(`❌ Error: ${data.message}`, 'error');
         }
     } catch (error) {
         console.error('Failed to reset visitors:', error);
-        alert('❌ Failed to reset visitor count. Please try again.');
+        showNotification('❌ Failed to reset visitor count. Please try again.', 'error');
     }
 }
 
@@ -1210,7 +1327,7 @@ async function resetAllVisitors() {
         
         if (data.ok) {
             btn.innerHTML = '✅ Reset Complete!';
-            alert(`✅ ${data.message}`);
+            showNotification(`✅ ${data.message}`, 'success');
             loadLinks();
             loadAnalytics();
             
@@ -1222,13 +1339,42 @@ async function resetAllVisitors() {
         } else {
             btn.innerHTML = originalText;
             btn.disabled = false;
-            alert(`❌ Error: ${data.message}`);
+            showNotification(`❌ Error: ${data.message}`, 'error');
         }
     } catch (error) {
         console.error('Failed to reset all visitors:', error);
         btn.innerHTML = originalText;
         btn.disabled = false;
-        alert('❌ Failed to reset visitor counts. Please try again.');
+        showNotification('❌ Failed to reset visitor counts. Please try again.', 'error');
+    }
+}
+
+async function deleteShortlink(slug) {
+    if (!confirm(`Are you sure you want to delete the shortlink "${slug}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/delete/${slug}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+            showNotification(`✅ Shortlink "${slug}" deleted successfully!`, 'success');
+            loadLinks();
+            loadAnalytics();
+        } else {
+            showNotification(`❌ Error: ${data.message}`, 'error');
+        }
+    } catch (error) {
+        console.error('Failed to delete shortlink:', error);
+        showNotification('❌ Failed to delete shortlink. Please try again.', 'error');
     }
 }
 
