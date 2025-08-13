@@ -379,6 +379,16 @@
         font-size: 11px;
         color: var(--color-primary);
         font-weight: 500;
+        text-decoration: none;
+        display: inline-block;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .link-slug:hover {
+        background: var(--color-surface-hover);
+        color: var(--color-accent);
+        box-shadow: 0 0 0 1px var(--color-border-light) inset;
     }
     
     .link-destination {
@@ -1158,7 +1168,7 @@ function displayLinks(links) {
             <tbody>
                 ${links.map(link => `
                     <tr>
-                        <td><span class="link-slug">${link.slug}</span></td>
+                        <td><a href="${link.full_url || ('/' + link.slug)}" class="link-slug" target="_blank" rel="noopener" title="${link.full_url || ('/' + link.slug)}">${link.slug}</a></td>
                         <td><div class="link-destination" title="${link.destination}">${link.destination}</div></td>
                         <td><span class="clicks-badge">${link.clicks}</span></td>
                         <td><span class="status-${link.active ? 'active' : 'inactive'}">${link.active ? 'Active' : 'Inactive'}</span></td>

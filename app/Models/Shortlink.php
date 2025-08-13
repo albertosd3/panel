@@ -20,6 +20,9 @@ class Shortlink extends Model
         'meta' => 'array',
     ];
 
+    // Ensure computed attribute is included in JSON responses
+    protected $appends = ['full_url'];
+
     public function domain(): BelongsTo
     {
         return $this->belongsTo(Domain::class);
