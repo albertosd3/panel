@@ -8,7 +8,8 @@
     .envelope-container {
         padding: 20px;
         min-height: 100vh;
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+        /* Remove page-level blue gradient to use global terminal grid background */
+        background: none;
     }
     
     .dashboard-wrapper {
@@ -44,7 +45,7 @@
     }
     
     .header-info h1 {
-        font-family: var(--font-serif);
+        font-family: var(--font-mono);
         font-size: 32px;
         font-weight: 600;
         color: var(--color-text-primary);
@@ -219,7 +220,7 @@
     }
     
     .card-title {
-        font-family: var(--font-serif);
+        font-family: var(--font-mono);
         font-size: 20px;
         font-weight: 600;
         color: var(--color-text-primary);
@@ -325,7 +326,7 @@
     .form-input:focus {
         outline: none;
         border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
         background: var(--color-bg-tertiary);
     }
     
@@ -399,278 +400,13 @@
         color: var(--color-text-muted);
     }
     
-    .clicks-badge {
-        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-        color: white;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-    }
-    
-    .status-active {
-        color: var(--color-success);
-        font-weight: 600;
-    }
-    
-    .status-inactive {
-        color: var(--color-danger);
-        font-weight: 600;
-    }
-    
+    /* Loading state */
     .loading {
-        text-align: center;
-        padding: 40px;
-        color: var(--color-muted);
-    }
-    
-    .loading-spinner {
-        width: 32px;
-        height: 32px;
-        border: 3px solid #f3f4f6;
-        border-top: 3px solid var(--color-primary);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 16px;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    /* Success Animation */
-    @keyframes checkmark {
-        0% { 
-            transform: scale(0) rotate(45deg);
-            opacity: 0;
-        }
-        50% { 
-            transform: scale(1.3) rotate(45deg);
-            opacity: 1;
-        }
-        100% { 
-            transform: scale(1) rotate(0deg);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes bounce-in {
-        0% { 
-            transform: scale(0.3);
-            opacity: 0;
-        }
-        50% { 
-            transform: scale(1.05);
-        }
-        70% { 
-            transform: scale(0.9);
-        }
-        100% { 
-            transform: scale(1);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes fade-in {
-        0% { opacity: 0; transform: translateY(-10px); }
-        100% { opacity: 1; transform: translateY(0); }
-    }
-    
-    .success-animation {
         display: flex;
         align-items: center;
-        gap: 8px;
-        color: #10b981;
-        font-weight: 600;
-        animation: bounce-in 0.6s ease-out;
-    }
-    
-    .success-checkmark {
-        font-size: 18px;
-        animation: checkmark 0.8s ease-out;
-        filter: drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3));
-    }
-    
-    .loading-create {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--color-primary);
-        font-weight: 600;
-    }
-    
-    .loading-create .loading-spinner {
-        width: 16px;
-        height: 16px;
-        border-width: 2px;
-    }
-    
-    /* Reset buttons styling */
-    .reset-buttons .btn {
-        margin-left: 8px;
-        font-size: 12px;
-        padding: 6px 12px;
-    }
-    
-    .btn-warning {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        color: white;
-        border: 1px solid #d97706;
-    }
-    
-    .btn-warning:hover {
-        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-        transform: translateY(-1px);
-    }
-    
-    .btn-danger-sm {
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        color: white;
-        border: 1px solid #dc2626;
-        font-size: 11px;
-        padding: 4px 8px;
-        border-radius: 4px;
-    }
-    
-    .btn-danger-sm:hover {
-        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-        transform: translateY(-1px);
-    }
-    
-    .btn-delete-sm {
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        color: white;
-        border: 1px solid #dc2626;
-        font-size: 11px;
-        padding: 4px 8px;
-        border-radius: 4px;
-        margin-left: 4px;
-    }
-    
-    .btn-delete-sm:hover {
-        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-        transform: translateY(-1px);
-    }
-    
-    .action-buttons {
-        display: flex;
-        gap: 4px;
         justify-content: center;
-    }
-    
-    /* Notification System */
-    .notification {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 16px 20px;
-        border-radius: 8px;
-        color: white;
-        font-weight: 500;
-        z-index: 1000;
-        min-width: 300px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        animation: slideInRight 0.3s ease-out;
-    }
-    
-    .notification.success {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    }
-    
-    .notification.error {
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    }
-    
-    .notification.warning {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    }
-    
-    @keyframes slideInRight {
-        0% { 
-            opacity: 0; 
-            transform: translateX(100%); 
-        }
-        100% { 
-            opacity: 1; 
-            transform: translateX(0); 
-        }
-    }
-    
-    @keyframes slideOutRight {
-        0% { 
-            opacity: 1; 
-            transform: translateX(0); 
-        }
-        100% { 
-            opacity: 0; 
-            transform: translateX(100%); 
-        }
-    }
-    
-    /* Sidebar Styles */
-    .sidebar-list {
-        list-style: none;
-    }
-    
-    .sidebar-item {
-        padding: 12px 0;
-        border-bottom: 1px solid #f1f5f9;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .sidebar-item:last-child {
-        border-bottom: none;
-    }
-    
-    .sidebar-label {
-        font-size: 13px;
-        color: var(--color-dark);
-        font-weight: 500;
-    }
-    
-    .sidebar-value {
-        font-size: 13px;
-        color: var(--color-muted);
-        font-weight: 500;
-    }
-    
-    /* Responsive */
-    @media (max-width: 1200px) {
-        .main-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-    
-    @media (max-width: 768px) {
-        .dashboard-wrapper {
-            padding: 0 12px;
-        }
-        
-        .header-content {
-            flex-direction: column;
-            gap: 16px;
-            align-items: flex-start;
-        }
-        
-        .header-actions {
-            width: 100%;
-            justify-content: flex-start;
-        }
-        
-        .stats-grid {
-            grid-template-columns: 1fr;
-        }
-        
-        .analytics-controls {
-            flex-wrap: wrap;
-        }
-        
-        .comparison-stats {
-            grid-template-columns: 1fr;
-        }
+        padding: 24px;
+        color: var(--color-text-muted);
     }
 </style>
 @endpush
@@ -689,9 +425,6 @@
                 </div>
             </div>
             <div class="header-actions">
-                <a href="{{ route('panel.domains') }}" class="btn btn-info">
-                    🌍 Domains
-                </a>
                 <button class="btn btn-primary" onclick="refreshData()">
                     🔄 Refresh
                 </button>
@@ -788,13 +521,6 @@
                                class="form-input" 
                                placeholder="https://example.com/your-long-url"
                                required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="domain_id">Domain</label>
-                        <select id="domain_id" name="domain_id" class="form-input">
-                            <option value="">Use default domain</option>
-                            <!-- Domain options will be populated by JavaScript -->
-                        </select>
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="slug">Custom Slug (optional)</label>
@@ -917,7 +643,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTime();
     loadAnalytics();
     loadLinks();
-    loadDomains();
     setupEventListeners();
     
     // Auto-refresh every 30 seconds
@@ -1197,7 +922,6 @@ async function createShortlink() {
     const formData = new FormData(form);
     const destination = formData.get('destination');
     const slug = formData.get('slug');
-    const domain_id = formData.get('domain_id');
     
     // Get submit button
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -1215,7 +939,7 @@ async function createShortlink() {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify({ destination, slug, domain_id })
+            body: JSON.stringify({ destination, slug })
         });
         
         const data = await response.json();
@@ -1247,35 +971,6 @@ async function createShortlink() {
         submitBtn.innerHTML = originalBtnText;
         submitBtn.disabled = false;
         showNotification('Failed to create shortlink. Please try again.', 'error');
-    }
-}
-
-async function loadDomains() {
-    try {
-        const response = await fetch('/api/domains');
-        const data = await response.json();
-        
-        if (data.ok) {
-            const domainSelect = document.getElementById('domain_id');
-            
-            // Clear existing options except the default one
-            domainSelect.innerHTML = '<option value="">Use default domain</option>';
-            
-            data.data.forEach(domain => {
-                const option = document.createElement('option');
-                option.value = domain.id;
-                option.textContent = domain.domain + (domain.is_default ? ' (Default)' : '');
-                
-                if (domain.is_default) {
-                    option.selected = true;
-                }
-                
-                domainSelect.appendChild(option);
-            });
-        }
-        
-    } catch (error) {
-        console.error('Failed to load domains:', error);
     }
 }
 

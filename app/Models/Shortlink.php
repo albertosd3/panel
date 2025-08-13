@@ -35,12 +35,7 @@ class Shortlink extends Model
 
     public function getFullUrlAttribute(): string
     {
-        // Prefer explicitly associated domain
-        if ($this->domain) {
-            return rtrim($this->domain->url, '/') . '/' . $this->slug;
-        }
-
-        // Fallback to default active domain from domains table if available
+        // Always use the default active domain (main domain) when building the full URL
         try {
             /** @var \App\Models\Domain|null $default */
             $default = Domain::getDefault();
@@ -51,7 +46,7 @@ class Shortlink extends Model
             // Ignore and fallback below
         }
         
-        // Final fallback to APP_URL (avoid hardcoded localhost)
+        // Final fallback to APP_URL
         $appUrl = (string) config('app.url', '');
         if ($appUrl !== '') {
             return rtrim($appUrl, '/') . '/' . $this->slug;

@@ -23,12 +23,9 @@ class ShortlinkController extends Controller
 
     public function list(Request $request)
     {
-        $links = Shortlink::with(['domain' => function ($q) {
-                $q->select('id', 'domain', 'force_https', 'is_active', 'is_default');
-            }])
-            ->orderByDesc('id')
+        $links = Shortlink::orderByDesc('id')
             ->limit(200)
-            ->get(['id','slug','destination','clicks','active','created_at','domain_id']);
+            ->get(['id','slug','destination','clicks','active','created_at']);
         // Compute real clicks from events table based on bot counting setting
         $countBots = (bool) config('panel.count_bots', false);
         $eventCounts = ShortlinkEvent::select('shortlink_id', DB::raw('COUNT(*) as c'))
@@ -266,7 +263,6 @@ class ShortlinkController extends Controller
             $data = $request->validate([
                 'destination' => ['required','url','max:2048'],
                 'slug' => ['nullable','alpha_dash','min:3','max:64','unique:shortlinks,slug'],
-                'domain_id' => ['nullable','exists:domains,id']
             ]);
 
             $slug = $data['slug'] ?? null;
@@ -282,7 +278,6 @@ class ShortlinkController extends Controller
             $link = Shortlink::create([
                 'slug' => $slug,
                 'destination' => $data['destination'],
-                'domain_id' => $data['domain_id'] ?? null,
                 'clicks' => 0,
                 'active' => true,
                 'meta' => [

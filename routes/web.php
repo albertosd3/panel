@@ -37,7 +37,6 @@ Route::middleware('panel.auth')->group(function () {
         Route::get('/links', [ShortlinkController::class, 'list'])->name('api.links');
         Route::get('/analytics', [ShortlinkController::class, 'analytics'])->name('api.analytics');
         Route::post('/create', [ShortlinkController::class, 'store'])->name('api.create');
-        Route::get('/domains', [App\Http\Controllers\DomainController::class, 'apiList'])->name('api.domains');
         Route::post('/reset-visitors/{slug}', [ShortlinkController::class, 'resetVisitors'])->name('api.reset-visitors');
         Route::post('/reset-all-visitors', [ShortlinkController::class, 'resetAllVisitors'])->name('api.reset-all-visitors');
         Route::delete('/delete/{slug}', [ShortlinkController::class, 'destroy'])->name('api.delete-shortlink');
@@ -52,17 +51,6 @@ Route::middleware('panel.auth')->group(function () {
             ]);
         });
     });
-});
-
-// Domain management routes (authenticated)
-Route::middleware('panel.auth')->prefix('panel')->group(function () {
-    Route::get('/domains', [App\Http\Controllers\DomainController::class, 'index'])->name('panel.domains');
-    Route::post('/domains', [App\Http\Controllers\DomainController::class, 'store'])->name('panel.domains.store');
-    Route::put('/domains/{domain}', [App\Http\Controllers\DomainController::class, 'update'])->name('panel.domains.update');
-    Route::delete('/domains/{domain}', [App\Http\Controllers\DomainController::class, 'destroy'])->name('panel.domains.destroy');
-    Route::patch('/domains/{domain}/set-default', [App\Http\Controllers\DomainController::class, 'setDefault'])->name('panel.domains.set-default');
-    Route::patch('/domains/{domain}/toggle-active', [App\Http\Controllers\DomainController::class, 'toggleActive'])->name('panel.domains.toggle-active');
-    Route::post('/domains/{domain}/test', [App\Http\Controllers\DomainController::class, 'testDomain'])->name('panel.domains.test');
 });
 
 // Health check route for domain testing

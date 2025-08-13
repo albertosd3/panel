@@ -71,7 +71,7 @@
 
                 <div class="prompt">$ <span class="path">auth</span> --mode=pin --digits=6</div>
 
-                <form id="pinForm" method="POST" action="{{ route('panel.verify') }}">
+                <form id="pinForm" method="POST" action="{{ route('panel.verify') }}" data-initial-pin="{{ old('pin') }}">
                     @csrf
 
                     <label class="form-label" for="pin-box-0">Passcode</label>
@@ -110,13 +110,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const hidden = document.getElementById('pin');
     const form = document.getElementById('pinForm');
 
+    let suppressAuto = false;
+
     boxes[0].focus();
 
     function updateHiddenAndAutoSubmit() {
         const val = boxes.map(b => (b.value || '').replace(/\D/g, '').slice(0,1)).join('');
         hidden.value = val;
         boxes.forEach(b => b.classList.toggle('filled', !!b.value));
-        if (val.length === 6) { form.submit(); }
+        if (!suppressAuto && val.length === 6) { form.submit(); }
+    }
+
+    // Prefill from previous attempt if available
+    const initial = (form.getAttribute('data-initial-pin') || '').replace(/\D/g,'').slice(0,6);
+    if (initial.length) {
+        suppressAuto = true;
+        for (let i = 0; i < boxes.length; i++) {
+            boxes[i].value = initial[i] || '';
+        }
+        updateHiddenAndAutoSubmit();
+        suppressAuto = false;
+        // Place cursor at the end
+        const next = initial.length < boxes.length ? boxes[initial.length] : boxes[boxes.length - 1];
+        next.focus();
     }
 
     boxes.forEach((box, idx) => {
