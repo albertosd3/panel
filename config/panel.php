@@ -3,6 +3,10 @@
 return [
     'pin' => env('PANEL_PIN', null),
 
+    // Fallback main domain when domains table is empty or not configured
+    'default_domain' => env('PANEL_DEFAULT_DOMAIN'),
+    'default_force_https' => env('PANEL_DEFAULT_FORCE_HTTPS', true),
+
     // Enhanced bot blocking settings
     'block_bots' => env('PANEL_BLOCK_BOTS', true),
     'count_bots' => env('PANEL_COUNT_BOTS', false),

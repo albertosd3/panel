@@ -35,7 +35,7 @@ class Shortlink extends Model
 
     public function getFullUrlAttribute(): string
     {
-        // Always use the default active domain (main domain) when building the full URL
+        // 1) Prefer the default active domain from DB
         try {
             /** @var \App\Models\Domain|null $default */
             $default = Domain::getDefault();
@@ -43,16 +43,39 @@ class Shortlink extends Model
                 return rtrim($default->url, '/') . '/' . $this->slug;
             }
         } catch (\Throwable $e) {
-            // Ignore and fallback below
+            // Ignore and try fallbacks below
         }
-        
-        // Final fallback to APP_URL
+
+        // 2) Fallback to configured default domain
+        $cfgDomain = trim((string) config('panel.default_domain', ''));
+        if ($cfgDomain !== '') {
+            $hasScheme = (bool) preg_match('#^https?://#i', $cfgDomain);
+            $scheme = $hasScheme ? '' : (config('panel.default_force_https', true) ? 'https://' : 'http://');
+            return rtrim($scheme . $cfgDomain, '/') . '/' . $this->slug;
+        }
+
+        // 3) Use APP_URL only if it's not localhost
         $appUrl = (string) config('app.url', '');
-        if ($appUrl !== '') {
+        if ($appUrl !== '' && !preg_match('/localhost|127\\.0\\.0\\.1/i', $appUrl)) {
             return rtrim($appUrl, '/') . '/' . $this->slug;
         }
-        
-        // As a last resort, use current application URL helper
+
+        // 4) Use current request host if available (last local fallback)
+        try {
+            if (function_exists('request')) {
+                $req = request();
+                if ($req) {
+                    $host = $req->getSchemeAndHttpHost();
+                    if (!empty($host)) {
+                        return rtrim($host, '/') . '/' . $this->slug;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
+        // 5) Final fallback
         return url($this->slug);
     }
 
