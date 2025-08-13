@@ -42,7 +42,7 @@
         align-items: center;
         justify-content: center;
         z-index: 10;
-        box-shadow: var(--shadow-lg);
+        box-shadow: var(--shadow-lg), 0 0 12px rgba(59, 130, 246, 0.35);
     }
     
     .seal-icon {
@@ -51,6 +51,7 @@
         background: var(--color-primary);
         border-radius: 50%;
         position: relative;
+        box-shadow: 0 0 10px var(--color-primary), 0 0 20px rgba(59,130,246,0.6);
     }
     
     .seal-icon::before {
@@ -90,25 +91,45 @@
         content: '🛡️';
         margin-right: 6px;
     }
-    
-    .pin-input {
+
+    /* Segmented PIN UI */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+    .pin-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 10px;
+        margin: 10px 0 18px;
+    }
+
+    .pin-box {
+        width: 100%;
+        height: 56px;
         text-align: center;
-        font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
-        font-size: 18px;
-        letter-spacing: 4px;
-        font-weight: 600;
-        padding: 16px;
+        font-family: var(--font-mono, 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace);
+        font-size: 20px;
+        font-weight: 700;
         background: var(--color-bg-secondary);
-        border: 2px solid var(--color-border);
         color: var(--color-text-primary);
+        border: 2px solid var(--color-border);
+        border-radius: 10px;
+        transition: all 0.2s ease;
+        caret-color: transparent;
     }
-    
-    .pin-input:focus {
-        background: var(--color-bg-tertiary);
+
+    .pin-box:focus {
+        outline: none;
         border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.25), 0 0 12px rgba(59,130,246,0.35);
+        background: var(--color-bg-tertiary);
+        transform: translateY(-1px);
     }
-    
+
+    .pin-box.filled {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 6px rgba(59,130,246,0.35);
+    }
+
     .access-info {
         background: var(--color-bg-tertiary);
         border: 1px solid var(--color-border);
@@ -158,24 +179,21 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('panel.verify') }}">
+                <form id="pinForm" method="POST" action="{{ route('panel.verify') }}">
                     @csrf
-                    <div class="form-group">
-                        <label for="pin" class="form-label">Security PIN</label>
-                        <input 
-                            id="pin"
-                            name="pin"
-                            type="password"
-                            class="form-control pin-input"
-                            inputmode="numeric"
-                            pattern="[0-9]*"
-                            minlength="6"
-                            maxlength="6"
-                            autocomplete="one-time-code"
-                            placeholder="••••••"
-                            required
-                            value="{{ old('pin') }}"
-                        >
+
+                    <label class="form-label" for="pin-box-0">Security PIN</label>
+                    <!-- Hidden aggregated field sent to backend -->
+                    <input type="hidden" name="pin" id="pin" value="">
+
+                    <div class="pin-grid" aria-label="6-digit PIN input" role="group">
+                        <span class="sr-only" id="pin-instructions">Enter 6 digits. Use left/right keys to navigate.</span>
+                        <input id="pin-box-0" class="pin-box" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-labelledby="pin-instructions" autocomplete="one-time-code" />
+                        <input id="pin-box-1" class="pin-box" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-labelledby="pin-instructions" />
+                        <input id="pin-box-2" class="pin-box" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-labelledby="pin-instructions" />
+                        <input id="pin-box-3" class="pin-box" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-labelledby="pin-instructions" />
+                        <input id="pin-box-4" class="pin-box" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-labelledby="pin-instructions" />
+                        <input id="pin-box-5" class="pin-box" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-labelledby="pin-instructions" />
                     </div>
                     
                     <button type="submit" class="btn btn-primary btn-full">
@@ -199,30 +217,80 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const pinInput = document.getElementById('pin');
-    
-    // Auto-focus on load
-    pinInput.focus();
-    
-    // Only allow numeric input
-    pinInput.addEventListener('input', function(e) {
-        this.value = this.value.replace(/[^0-9]/g, '');
-        
-        // Auto-submit when 6 digits entered
-        if (this.value.length === 6) {
-            this.form.submit();
+    const boxes = Array.from(document.querySelectorAll('.pin-box'));
+    const hidden = document.getElementById('pin');
+    const form = document.getElementById('pinForm');
+
+    // Focus first
+    boxes[0].focus();
+
+    function updateHiddenAndAutoSubmit() {
+        const val = boxes.map(b => (b.value || '').replace(/\D/g, '').slice(0,1)).join('');
+        hidden.value = val;
+        boxes.forEach(b => b.classList.toggle('filled', !!b.value));
+        if (val.length === 6) {
+            form.submit();
         }
+    }
+
+    boxes.forEach((box, idx) => {
+        box.addEventListener('input', (e) => {
+            // keep only one digit
+            const d = (box.value || '').replace(/\D/g, '');
+            box.value = d.slice(0,1);
+            if (d.length) {
+                // move to next
+                if (idx < boxes.length - 1) boxes[idx+1].focus();
+            }
+            updateHiddenAndAutoSubmit();
+        });
+
+        box.addEventListener('keydown', (e) => {
+            const key = e.key;
+            if (key === 'ArrowLeft' && idx > 0) {
+                e.preventDefault();
+                boxes[idx-1].focus();
+            } else if (key === 'ArrowRight' && idx < boxes.length - 1) {
+                e.preventDefault();
+                boxes[idx+1].focus();
+            } else if (key === 'Backspace') {
+                if (!box.value && idx > 0) {
+                    boxes[idx-1].value = '';
+                    boxes[idx-1].focus();
+                    updateHiddenAndAutoSubmit();
+                    e.preventDefault();
+                }
+            }
+        });
+
+        // Paste handler: distribute digits
+        box.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
+            const digits = paste.replace(/\D/g, '').slice(0, 6);
+            if (!digits) return;
+            let i = idx;
+            for (const ch of digits) {
+                if (i >= boxes.length) break;
+                boxes[i].value = ch;
+                i++;
+            }
+            if (i <= boxes.length - 1) {
+                boxes[i].focus();
+            } else {
+                boxes[boxes.length - 1].focus();
+            }
+            updateHiddenAndAutoSubmit();
+        });
     });
-    
-    // Prevent paste of non-numeric content
-    pinInput.addEventListener('paste', function(e) {
-        e.preventDefault();
-        const paste = (e.clipboardData || window.clipboardData).getData('text');
-        const numericPaste = paste.replace(/[^0-9]/g, '').slice(0, 6);
-        this.value = numericPaste;
-        
-        if (numericPaste.length === 6) {
-            this.form.submit();
+
+    // Ensure hidden field is set on submit
+    form.addEventListener('submit', (e) => {
+        const val = boxes.map(b => b.value).join('');
+        hidden.value = val;
+        // Basic guard
+        if (val.length !== 6 || /\D/.test(val)) {
+            e.preventDefault();
         }
     });
 });

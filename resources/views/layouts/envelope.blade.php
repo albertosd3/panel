@@ -7,7 +7,7 @@
     <title>@yield('title', 'Professional Shortlink Panel')</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -19,6 +19,12 @@
             --color-success: #10b981;
             --color-warning: #f59e0b;
             --color-danger: #ef4444;
+            
+            /* Cyberpunk neon accents */
+            --neon-blue: #3b82f6;
+            --neon-pink: #ec4899;
+            --neon-green: #22d3ee;
+            --neon-amber: #f59e0b;
             
             /* Dark Background Colors */
             --color-bg-primary: #0f172a;
@@ -39,6 +45,7 @@
             
             --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             --font-serif: 'Crimson Text', 'Times New Roman', serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
             
             --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
             --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
@@ -55,13 +62,21 @@
         
         body {
             font-family: var(--font-primary);
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #111827 35%, #1e293b 65%, #0b1221 100%);
             color: var(--color-text-primary);
             line-height: 1.6;
             min-height: 100vh;
             font-size: 14px;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            /* subtle cyber grid */
+            background-image:
+                radial-gradient(600px 400px at 20% 10%, rgba(59,130,246,0.10), transparent 60%),
+                radial-gradient(500px 300px at 80% 90%, rgba(236,72,153,0.08), transparent 60%),
+                linear-gradient(rgba(255,255,255,0.02), rgba(255,255,255,0.02)),
+                repeating-linear-gradient(90deg, rgba(148,163,184,0.06) 0, rgba(148,163,184,0.06) 1px, transparent 1px, transparent 24px),
+                repeating-linear-gradient(0deg, rgba(148,163,184,0.04) 0, rgba(148,163,184,0.04) 1px, transparent 1px, transparent 24px);
+            background-blend-mode: screen, screen, normal, normal, normal;
         }
         
         /* Paper/Envelope Base - Dark Theme */
@@ -92,7 +107,8 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent) 100%);
+            background: linear-gradient(90deg, var(--neon-blue) 0%, var(--neon-pink) 50%, var(--neon-amber) 100%);
+            box-shadow: 0 0 18px rgba(59,130,246,0.35);
         }
         
         /* Typography - Dark Theme */
@@ -103,6 +119,7 @@
             color: var(--color-text-primary);
             margin-bottom: 8px;
             letter-spacing: -0.025em;
+            text-shadow: 0 1px 0 rgba(0,0,0,0.4);
         }
         
         .heading-secondary {
@@ -114,7 +131,7 @@
         }
         
         .text-muted {
-            color: var(--color-muted);
+            color: var(--color-text-muted);
             font-size: 13px;
         }
         
@@ -140,14 +157,15 @@
         }
         
         .btn-primary {
-            background: var(--color-primary);
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-amber));
             color: white;
+            box-shadow: 0 6px 14px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
         }
         
         .btn-primary:hover {
-            background: var(--color-primary-dark);
+            background: linear-gradient(135deg, var(--color-primary-dark), var(--neon-amber));
             transform: translateY(-1px);
-            box-shadow: var(--shadow-md);
+            box-shadow: 0 10px 20px rgba(59,130,246,0.35), 0 0 18px rgba(59,130,246,0.3);
         }
         
         .btn-secondary {
@@ -161,13 +179,15 @@
         }
         
         .btn-danger {
-            background: var(--color-danger);
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
             color: white;
+            box-shadow: 0 6px 14px rgba(239,68,68,0.2);
         }
         
         .btn-danger:hover {
-            background: #b91c1c;
+            background: linear-gradient(135deg, #dc2626, #991b1b);
             transform: translateY(-1px);
+            box-shadow: 0 10px 20px rgba(239,68,68,0.3);
         }
         
         .btn-outline {
@@ -214,7 +234,7 @@
         .form-control:focus {
             outline: none;
             border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25), 0 0 12px rgba(59,130,246,0.25);
             background: var(--color-bg-tertiary);
         }
         
@@ -263,22 +283,35 @@
         }
         
         .alert-error {
-            background: #fef2f2;
-            border-color: #fecaca;
-            color: #991b1b;
+            background: rgba(239,68,68,0.08);
+            border-color: rgba(239,68,68,0.35);
+            color: #fecaca;
         }
         
         .alert-success {
-            background: #f0fdf4;
-            border-color: #bbf7d0;
-            color: #166534;
+            background: rgba(16,185,129,0.08);
+            border-color: rgba(16,185,129,0.35);
+            color: #bbf7d0;
         }
         
         .alert-warning {
-            background: #fffbeb;
-            border-color: #fed7aa;
-            color: #92400e;
+            background: rgba(245,158,11,0.08);
+            border-color: rgba(245,158,11,0.35);
+            color: #fde68a;
         }
+        
+        /* Tables (generic dark style) */
+        .table { width: 100%; border-collapse: collapse; }
+        .table th, .table td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); color: var(--color-text-primary); }
+        .table thead th { background: var(--color-bg-tertiary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .table tbody tr:hover { background: var(--color-surface-hover); }
+        
+        /* Badges */
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+        .badge.bg-primary { background: var(--color-primary); color: #fff; }
+        .badge.bg-success { background: var(--color-success); color: #052e1b; }
+        .badge.bg-secondary { background: #64748b; color: #0b1221; }
+        .badge.bg-info { background: #38bdf8; color: #06202a; }
         
         /* Utilities */
         .text-center { text-align: center; }
@@ -293,32 +326,15 @@
         
         /* Responsive */
         @media (max-width: 768px) {
-            .envelope-container {
-                padding: 12px;
-            }
-            
-            .heading-primary {
-                font-size: 24px;
-            }
-            
-            .heading-secondary {
-                font-size: 18px;
-            }
-            
-            .card-body {
-                padding: 20px;
-            }
+            .envelope-container { padding: 12px; }
+            .heading-primary { font-size: 24px; }
+            .heading-secondary { font-size: 18px; }
+            .card-body { padding: 20px; }
         }
         
         @media (max-width: 480px) {
-            .card-body {
-                padding: 16px;
-            }
-            
-            .btn {
-                padding: 12px 16px;
-                font-size: 13px;
-            }
+            .card-body { padding: 16px; }
+            .btn { padding: 12px 16px; font-size: 13px; }
         }
     </style>
     @stack('styles')
