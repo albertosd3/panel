@@ -35,12 +35,30 @@ class Shortlink extends Model
 
     public function getFullUrlAttribute(): string
     {
+        // Prefer explicitly associated domain
         if ($this->domain) {
-            return $this->domain->url . '/' . $this->slug;
+            return rtrim($this->domain->url, '/') . '/' . $this->slug;
+        }
+
+        // Fallback to default active domain from domains table if available
+        try {
+            /** @var \App\Models\Domain|null $default */
+            $default = Domain::getDefault();
+            if ($default) {
+                return rtrim($default->url, '/') . '/' . $this->slug;
+            }
+        } catch (\Throwable $e) {
+            // Ignore and fallback below
         }
         
-        $defaultDomain = config('app.url', 'http://localhost');
-        return rtrim($defaultDomain, '/') . '/' . $this->slug;
+        // Final fallback to APP_URL (avoid hardcoded localhost)
+        $appUrl = (string) config('app.url', '');
+        if ($appUrl !== '') {
+            return rtrim($appUrl, '/') . '/' . $this->slug;
+        }
+        
+        // As a last resort, use current application URL helper
+        return url($this->slug);
     }
 
     public function getQrCodeUrlAttribute(): string
