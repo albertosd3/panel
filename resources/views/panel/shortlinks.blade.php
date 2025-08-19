@@ -549,6 +549,18 @@
         transform: scale(1.05);
     }
 
+    .btn-edit {
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 6px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .btn-edit:hover { transform: scale(1.05); }
+
     @media (max-width: 768px) {
         .destination-inputs {
             grid-template-columns: 1fr;
@@ -1280,6 +1292,7 @@ function displayLinks(links) {
                         `Multiple destinations (${link.rotation_type})` : link.destination;
                     const rotatorBtn = link.is_rotator ? 
                         `<button class="btn-manage-rotator" onclick="manageRotator('${link.slug}')" title="Manage rotator">⚙️</button>` : '';
+                    const editBtn = `<button class="btn-edit" onclick="editDestinations('${link.slug}')" title="Edit destinations">✏️</button>`;
                     
                     return `
                     <tr>
@@ -1296,6 +1309,7 @@ function displayLinks(links) {
                         <td>${new Date(link.created_at).toLocaleDateString('id-ID')}</td>
                         <td>
                             <div class="action-buttons">
+                                ${editBtn}
                                 ${rotatorBtn}
                                 <button class="btn-danger-sm" onclick="resetVisitors('${link.slug}')" title="Reset visitor count">
                                     🔄
@@ -1477,7 +1491,7 @@ async function manageRotator(slug) {
         const data = await response.json();
         
         if (data.ok) {
-            showRotatorModal(data.data);
+            showEditDestinationsModal(data.data);
         } else {
             showNotification('Failed to load rotator data', 'error');
         }
@@ -1488,28 +1502,39 @@ async function manageRotator(slug) {
 }
 
 // Show rotator management modal
-function showRotatorModal(rotatorData) {
+function showEditDestinationsModal(rotatorData) {
     // Create modal HTML
     const modalHTML = `
         <div id="rotator-modal" class="modal-overlay" onclick="closeRotatorModal(event)">
             <div class="modal-content" onclick="event.stopPropagation()">
                 <div class="modal-header">
-                    <h3>Manage Rotator: ${rotatorData.slug}</h3>
+                    <h3>Edit Destinations: ${rotatorData.slug}</h3>
                     <button class="modal-close" onclick="closeRotatorModal()">&times;</button>
                 </div>
-                <form id="rotator-form">
+                <form id="destinations-form">
                     <div class="form-group">
+                        <label class="form-label">Type</label>
+                        <div class="link-type-toggle">
+                            <label class="toggle-option"><input type="radio" name="is_rotator" value="0" ${!rotatorData.is_rotator ? 'checked' : ''}><span>Single</span></label>
+                            <label class="toggle-option"><input type="radio" name="is_rotator" value="1" ${rotatorData.is_rotator ? 'checked' : ''}><span>Rotator</span></label>
+                        </div>
+                    </div>
+
+                    <div id="single-destination-group" class="form-group" style="display: ${rotatorData.is_rotator ? 'none' : 'block'};">
+                        <label class="form-label">Destination URL</label>
+                        <input type="url" name="destination" class="form-input" value="${rotatorData.destination || ''}" placeholder="https://example.com" ${rotatorData.is_rotator ? '' : 'required'}>
+                    </div>
+
+                    <div id="rotator-destinations-group" class="form-group" style="display: ${rotatorData.is_rotator ? 'block' : 'none'};">
                         <label class="form-label">Rotation Type</label>
                         <select name="rotation_type" class="form-input">
                             <option value="random" ${rotatorData.rotation_type === 'random' ? 'selected' : ''}>Random</option>
                             <option value="sequential" ${rotatorData.rotation_type === 'sequential' ? 'selected' : ''}>Sequential</option>
                             <option value="weighted" ${rotatorData.rotation_type === 'weighted' ? 'selected' : ''}>Weighted</option>
                         </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Destinations</label>
+                        <label class="form-label" style="margin-top:10px">Destinations</label>
                         <div id="modal-destinations-container">
-                            ${rotatorData.destinations.map((dest, index) => `
+                            ${ (rotatorData.destinations || []).map((dest, index) => `
                                 <div class="destination-item">
                                     <div class="destination-inputs">
                                         <input type="url" name="destinations[${index}][url]" class="form-input destination-url" value="${dest.url}" required>
@@ -1518,13 +1543,14 @@ function showRotatorModal(rotatorData) {
                                         <button type="button" class="btn-remove-destination" onclick="removeModalDestination(this)">🗑️</button>
                                     </div>
                                 </div>
-                            `).join('')}
+                            `).join('') }
                         </div>
                         <button type="button" class="btn btn-secondary btn-sm" onclick="addModalDestination()">+ Add Destination</button>
                     </div>
+
                     <div class="modal-actions">
                         <button type="button" class="btn btn-secondary" onclick="closeRotatorModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Update Rotator</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
                     </div>
                 </form>
             </div>
@@ -1534,10 +1560,18 @@ function showRotatorModal(rotatorData) {
     // Add modal to page
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
+    // Toggle visibility between single and rotator UI
+    const formEl = document.getElementById('destinations-form');
+    formEl.querySelectorAll('input[name="is_rotator"]').forEach(r => r.addEventListener('change', function(){
+        const isRot = this.value === '1';
+        document.getElementById('single-destination-group').style.display = isRot ? 'none' : 'block';
+        document.getElementById('rotator-destinations-group').style.display = isRot ? 'block' : 'none';
+    }));
+    
     // Setup form submission
-    document.getElementById('rotator-form').addEventListener('submit', function(e) {
+    document.getElementById('destinations-form').addEventListener('submit', function(e) {
         e.preventDefault();
-        updateRotator(rotatorData.slug);
+        submitDestinations(rotatorData.slug);
     });
 }
 
@@ -1641,23 +1675,66 @@ async function updateRotator(slug) {
     }
 }
 
-// Notification system
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
-            <span class="notification-message">${message}</span>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Auto remove after 3 seconds
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
+// Edit destinations (open unified modal)
+async function editDestinations(slug) {
+    try {
+        const response = await fetch(`/api/rotator/${slug}`);
+        const data = await response.json();
+        if (data.ok) {
+            showEditDestinationsModal(data.data);
+        } else {
+            showNotification('Failed to load link data', 'error');
+        }
+    } catch (err) {
+        console.error('Failed to load link data:', err);
+        showNotification('Failed to load link data', 'error');
+    }
+}
+
+async function submitDestinations(slug) {
+    const form = document.getElementById('destinations-form');
+    const formData = new FormData(form);
+
+    try {
+        const isRotator = formData.get('is_rotator') === '1';
+        const requestData = { is_rotator: isRotator };
+
+        if (isRotator) {
+            requestData.rotation_type = formData.get('rotation_type');
+            requestData.destinations = [];
+            const destinationItems = document.querySelectorAll('#modal-destinations-container .destination-item');
+            destinationItems.forEach((item, index) => {
+                const url = formData.get(`destinations[${index}][url]`);
+                const name = formData.get(`destinations[${index}][name]`);
+                const weight = formData.get(`destinations[${index}][weight]`);
+                if (url) requestData.destinations.push({ url: url, name: name || '', weight: parseInt(weight) || 1, active: true });
+            });
+        } else {
+            requestData.destination = formData.get('destination');
+        }
+
+        const response = await fetch(`/panel/shortlinks/${slug}/destinations`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        const data = await response.json();
+        if (data.ok) {
+            showNotification('Destinations updated', 'success');
+            closeRotatorModal();
+            loadLinks();
+        } else {
+            showNotification('Error: ' + (data.message || 'Failed to update'), 'error');
+        }
+    } catch (err) {
+        console.error('Failed to submit destinations:', err);
+        showNotification('Failed to update destinations', 'error');
+    }
 }
 </script>
 @endsection
