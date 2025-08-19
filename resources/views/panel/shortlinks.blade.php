@@ -408,6 +408,344 @@
         padding: 24px;
         color: var(--color-text-muted);
     }
+
+    /* Link Type Toggle */
+    .link-type-toggle {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .toggle-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border: 1px solid var(--color-border);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: var(--color-bg-secondary);
+        color: var(--color-text-secondary);
+        font-family: var(--font-mono);
+        font-size: 13px;
+    }
+
+    .toggle-option:hover {
+        border-color: var(--color-primary);
+        background: var(--color-bg-tertiary);
+    }
+
+    .toggle-option input[type="radio"] {
+        display: none;
+    }
+
+    .toggle-option input[type="radio"]:checked + span {
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+
+    .toggle-option:has(input[type="radio"]:checked) {
+        border-color: var(--color-primary);
+        background: var(--color-bg-tertiary);
+        box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+    }
+
+    /* Destination Management */
+    .destination-item {
+        margin-bottom: 12px;
+        padding: 12px;
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        background: var(--color-bg-tertiary);
+    }
+
+    .destination-inputs {
+        display: grid;
+        grid-template-columns: 2fr 1fr 80px 40px;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .destination-url {
+        grid-column: 1;
+    }
+
+    .destination-name {
+        grid-column: 2;
+    }
+
+    .destination-weight {
+        grid-column: 3;
+        text-align: center;
+    }
+
+    .btn-remove-destination {
+        grid-column: 4;
+        background: var(--color-danger);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+    }
+
+    .btn-remove-destination:hover {
+        background: #b91c1c;
+        transform: scale(1.05);
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+        min-height: 32px;
+    }
+
+    /* Rotator Badge */
+    .rotator-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 6px;
+        background: var(--color-accent);
+        color: var(--color-text-inverse);
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        margin-left: 6px;
+    }
+
+    .rotator-info {
+        font-size: 11px;
+        color: var(--color-text-muted);
+        margin-top: 2px;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .btn-manage-rotator {
+        background: var(--color-accent);
+        color: var(--color-text-inverse);
+        border: none;
+        border-radius: 4px;
+        padding: 4px 6px;
+        cursor: pointer;
+        font-size: 10px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-manage-rotator:hover {
+        background: #65a30d;
+        transform: scale(1.05);
+    }
+
+    @media (max-width: 768px) {
+        .destination-inputs {
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        
+        .destination-url,
+        .destination-name,
+        .destination-weight,
+        .btn-remove-destination {
+            grid-column: 1;
+        }
+        
+        .link-type-toggle {
+            flex-direction: column;
+        }
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-content {
+        background: var(--color-surface);
+        border-radius: 12px;
+        border: 1px solid var(--color-border);
+        box-shadow: var(--shadow-xl);
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        position: relative;
+    }
+
+    .modal-content::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent) 100%);
+    }
+
+    .modal-header {
+        padding: 20px 24px 16px;
+        border-bottom: 1px solid var(--color-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: var(--color-text-primary);
+        font-family: var(--font-mono);
+        font-size: 18px;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        color: var(--color-text-muted);
+        font-size: 24px;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+        background: var(--color-bg-tertiary);
+        color: var(--color-text-primary);
+    }
+
+    .modal-content form {
+        padding: 20px 24px;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        padding-top: 16px;
+        border-top: 1px solid var(--color-border);
+        margin-top: 20px;
+    }
+
+    /* Notification Styles */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        box-shadow: var(--shadow-lg);
+        padding: 12px 16px;
+        z-index: 1001;
+        min-width: 300px;
+        animation: slideInRight 0.3s ease-out;
+    }
+
+    .notification-success {
+        border-left: 4px solid var(--color-success);
+    }
+
+    .notification-error {
+        border-left: 4px solid var(--color-danger);
+    }
+
+    .notification-info {
+        border-left: 4px solid var(--color-primary);
+    }
+
+    .notification-content {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .notification-icon {
+        font-size: 16px;
+    }
+
+    .notification-message {
+        color: var(--color-text-primary);
+        font-size: 14px;
+        font-family: var(--font-mono);
+    }
+
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    /* Loading Spinner */
+    .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--color-border);
+        border-radius: 50%;
+        border-top: 2px solid var(--color-primary);
+        animation: spin 1s linear infinite;
+        margin-right: 8px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-create {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .success-animation {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .success-checkmark {
+        animation: bounceIn 0.5s ease-out;
+    }
+
+    @keyframes bounceIn {
+        0% { transform: scale(0); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
 </style>
 @endpush
 
@@ -513,15 +851,59 @@
                     <h2 class="card-title">Create New Shortlink</h2>
                 </div>
                 <form id="create-form">
+                    <!-- Link Type Toggle -->
                     <div class="form-group">
-                        <label class="form-label" for="destination">Destination URL</label>
-                        <input type="url" 
-                               id="destination" 
-                               name="destination" 
-                               class="form-input" 
-                               placeholder="https://example.com/your-long-url"
-                               required>
+                        <div class="link-type-toggle">
+                            <label class="toggle-option">
+                                <input type="radio" name="link_type" value="single" checked onchange="toggleLinkType()">
+                                <span>📎 Single Link</span>
+                            </label>
+                            <label class="toggle-option">
+                                <input type="radio" name="link_type" value="rotator" onchange="toggleLinkType()">
+                                <span>🔄 Link Rotator</span>
+                            </label>
+                        </div>
                     </div>
+
+                    <!-- Single Destination -->
+                    <div id="single-destination" class="destination-section">
+                        <div class="form-group">
+                            <label class="form-label" for="destination">Destination URL</label>
+                            <input type="url" 
+                                   id="destination" 
+                                   name="destination" 
+                                   class="form-input" 
+                                   placeholder="https://example.com/your-long-url">
+                        </div>
+                    </div>
+
+                    <!-- Rotator Destinations -->
+                    <div id="rotator-destinations" class="destination-section" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Rotation Type</label>
+                            <select name="rotation_type" class="form-input">
+                                <option value="random">Random - Each click goes to random destination</option>
+                                <option value="sequential">Sequential - Round-robin through destinations</option>
+                                <option value="weighted">Weighted - Based on weight distribution</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Destinations</label>
+                            <div id="destinations-container">
+                                <div class="destination-item">
+                                    <div class="destination-inputs">
+                                        <input type="url" name="destinations[0][url]" class="form-input destination-url" placeholder="https://example.com/page-1" required>
+                                        <input type="text" name="destinations[0][name]" class="form-input destination-name" placeholder="Name (optional)">
+                                        <input type="number" name="destinations[0][weight]" class="form-input destination-weight" placeholder="Weight" value="1" min="1" max="100">
+                                        <button type="button" class="btn-remove-destination" onclick="removeDestination(this)" title="Remove destination">🗑️</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addDestination()">+ Add Destination</button>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label" for="slug">Custom Slug (optional)</label>
                         <input type="text" 
@@ -891,15 +1273,30 @@ function displayLinks(links) {
                 </tr>
             </thead>
             <tbody>
-                ${links.map(link => `
+                ${links.map(link => {
+                    const rotatorBadge = link.is_rotator ? 
+                        `<span class="rotator-badge">🔄 ${link.destinations?.length || 0} URLs</span>` : '';
+                    const destination = link.is_rotator ? 
+                        `Multiple destinations (${link.rotation_type})` : link.destination;
+                    const rotatorBtn = link.is_rotator ? 
+                        `<button class="btn-manage-rotator" onclick="manageRotator('${link.slug}')" title="Manage rotator">⚙️</button>` : '';
+                    
+                    return `
                     <tr>
-                        <td><a href="${link.full_url || ('/' + link.slug)}" class="link-slug" target="_blank" rel="noopener" title="${link.full_url || ('/' + link.slug)}">${link.slug}</a></td>
-                        <td><div class="link-destination" title="${link.destination}">${link.destination}</div></td>
+                        <td>
+                            <a href="${link.full_url || ('/' + link.slug)}" class="link-slug" target="_blank" rel="noopener" title="${link.full_url || ('/' + link.slug)}">${link.slug}</a>
+                            ${rotatorBadge}
+                        </td>
+                        <td>
+                            <div class="link-destination" title="${link.destination}">${destination}</div>
+                            ${link.is_rotator ? `<div class="rotator-info">${link.destinations?.length || 0} destinations • ${link.rotation_type} rotation</div>` : ''}
+                        </td>
                         <td><span class="clicks-badge">${link.clicks}</span></td>
                         <td><span class="status-${link.active ? 'active' : 'inactive'}">${link.active ? 'Active' : 'Inactive'}</span></td>
                         <td>${new Date(link.created_at).toLocaleDateString('id-ID')}</td>
                         <td>
                             <div class="action-buttons">
+                                ${rotatorBtn}
                                 <button class="btn-danger-sm" onclick="resetVisitors('${link.slug}')" title="Reset visitor count">
                                     🔄
                                 </button>
@@ -909,7 +1306,8 @@ function displayLinks(links) {
                             </div>
                         </td>
                     </tr>
-                `).join('')}
+                    `;
+                }).join('')}
             </tbody>
         </table>
     `;
@@ -920,8 +1318,6 @@ function displayLinks(links) {
 async function createShortlink() {
     const form = document.getElementById('create-form');
     const formData = new FormData(form);
-    const destination = formData.get('destination');
-    const slug = formData.get('slug');
     
     // Get submit button
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -932,6 +1328,43 @@ async function createShortlink() {
     submitBtn.disabled = true;
     
     try {
+        // Prepare data based on link type
+        const linkType = formData.get('link_type');
+        const isRotator = linkType === 'rotator';
+        
+        const requestData = {
+            slug: formData.get('slug'),
+            is_rotator: isRotator
+        };
+        
+        if (isRotator) {
+            requestData.rotation_type = formData.get('rotation_type');
+            requestData.destinations = [];
+            
+            // Collect destinations
+            const destinationInputs = document.querySelectorAll('.destination-item');
+            destinationInputs.forEach((item, index) => {
+                const url = formData.get(`destinations[${index}][url]`);
+                const name = formData.get(`destinations[${index}][name]`);
+                const weight = formData.get(`destinations[${index}][weight]`);
+                
+                if (url) {
+                    requestData.destinations.push({
+                        url: url,
+                        name: name || '',
+                        weight: parseInt(weight) || 1,
+                        active: true
+                    });
+                }
+            });
+            
+            if (requestData.destinations.length === 0) {
+                throw new Error('At least one destination is required for rotator');
+            }
+        } else {
+            requestData.destination = formData.get('destination');
+        }
+        
         const response = await fetch('/api/create', {
             method: 'POST',
             headers: {
@@ -939,7 +1372,7 @@ async function createShortlink() {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify({ destination, slug })
+            body: JSON.stringify(requestData)
         });
         
         const data = await response.json();
@@ -949,6 +1382,7 @@ async function createShortlink() {
             submitBtn.innerHTML = '<div class="success-animation"><span class="success-checkmark">✅</span>Created Successfully!</div>';
             
             form.reset();
+            toggleLinkType(); // Reset to default state
             loadLinks();
             loadAnalytics();
             
@@ -979,118 +1413,251 @@ function refreshData() {
     loadLinks();
 }
 
-// Reset visitor functions
-async function resetVisitors(slug) {
-    if (!confirm(`Are you sure you want to reset visitor count for "${slug}"?\n\nThis action cannot be undone.`)) {
-        return;
-    }
+// Link type toggle functionality
+function toggleLinkType() {
+    const linkType = document.querySelector('input[name="link_type"]:checked').value;
+    const singleSection = document.getElementById('single-destination');
+    const rotatorSection = document.getElementById('rotator-destinations');
     
-    try {
-        const response = await fetch(`/api/reset-visitors/${slug}`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (data.ok) {
-            showNotification(`✅ ${data.message}`, 'success');
-            loadLinks();
-            loadAnalytics();
-        } else {
-            showNotification(`❌ Error: ${data.message}`, 'error');
+    if (linkType === 'rotator') {
+        singleSection.style.display = 'none';
+        rotatorSection.style.display = 'block';
+        document.getElementById('destination').removeAttribute('required');
+        // Ensure at least one destination exists
+        if (document.querySelectorAll('.destination-item').length === 0) {
+            addDestination();
         }
-    } catch (error) {
-        console.error('Failed to reset visitors:', error);
-        showNotification('❌ Failed to reset visitor count. Please try again.', 'error');
+    } else {
+        singleSection.style.display = 'block';
+        rotatorSection.style.display = 'none';
+        document.getElementById('destination').setAttribute('required', '');
     }
 }
 
-async function resetAllVisitors() {
-    if (!confirm('Are you sure you want to reset ALL visitor counts?\n\nThis will reset the visitor count for ALL shortlinks.\nThis action cannot be undone.')) {
-        return;
-    }
+// Add destination to rotator
+function addDestination() {
+    const container = document.getElementById('destinations-container');
+    const index = container.children.length;
     
-    const btn = document.getElementById('resetAllVisitorsBtn');
-    const originalText = btn.innerHTML;
+    const destinationItem = document.createElement('div');
+    destinationItem.className = 'destination-item';
+    destinationItem.innerHTML = `
+        <div class="destination-inputs">
+            <input type="url" name="destinations[${index}][url]" class="form-input destination-url" placeholder="https://example.com/page-${index + 1}" required>
+            <input type="text" name="destinations[${index}][name]" class="form-input destination-name" placeholder="Name (optional)">
+            <input type="number" name="destinations[${index}][weight]" class="form-input destination-weight" placeholder="Weight" value="1" min="1" max="100">
+            <button type="button" class="btn-remove-destination" onclick="removeDestination(this)" title="Remove destination">🗑️</button>
+        </div>
+    `;
     
-    // Show loading
-    btn.innerHTML = '🔄 Resetting...';
-    btn.disabled = true;
-    
-    try {
-        const response = await fetch('/api/reset-all-visitors', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json'
-            }
+    container.appendChild(destinationItem);
+}
+
+// Remove destination from rotator
+function removeDestination(button) {
+    const container = document.getElementById('destinations-container');
+    if (container.children.length > 1) {
+        button.closest('.destination-item').remove();
+        // Reindex remaining destinations
+        Array.from(container.children).forEach((item, index) => {
+            const inputs = item.querySelectorAll('input');
+            inputs[0].name = `destinations[${index}][url]`;
+            inputs[1].name = `destinations[${index}][name]`;
+            inputs[2].name = `destinations[${index}][weight]`;
         });
-        
+    } else {
+        showNotification('At least one destination is required', 'error');
+    }
+}
+
+// Manage rotator modal/popup
+async function manageRotator(slug) {
+    try {
+        const response = await fetch(`/api/rotator/${slug}`);
         const data = await response.json();
         
         if (data.ok) {
-            btn.innerHTML = '✅ Reset Complete!';
-            showNotification(`✅ ${data.message}`, 'success');
-            loadLinks();
-            loadAnalytics();
+            showRotatorModal(data.data);
+        } else {
+            showNotification('Failed to load rotator data', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to load rotator:', error);
+        showNotification('Failed to load rotator data', 'error');
+    }
+}
+
+// Show rotator management modal
+function showRotatorModal(rotatorData) {
+    // Create modal HTML
+    const modalHTML = `
+        <div id="rotator-modal" class="modal-overlay" onclick="closeRotatorModal(event)">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h3>Manage Rotator: ${rotatorData.slug}</h3>
+                    <button class="modal-close" onclick="closeRotatorModal()">&times;</button>
+                </div>
+                <form id="rotator-form">
+                    <div class="form-group">
+                        <label class="form-label">Rotation Type</label>
+                        <select name="rotation_type" class="form-input">
+                            <option value="random" ${rotatorData.rotation_type === 'random' ? 'selected' : ''}>Random</option>
+                            <option value="sequential" ${rotatorData.rotation_type === 'sequential' ? 'selected' : ''}>Sequential</option>
+                            <option value="weighted" ${rotatorData.rotation_type === 'weighted' ? 'selected' : ''}>Weighted</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Destinations</label>
+                        <div id="modal-destinations-container">
+                            ${rotatorData.destinations.map((dest, index) => `
+                                <div class="destination-item">
+                                    <div class="destination-inputs">
+                                        <input type="url" name="destinations[${index}][url]" class="form-input destination-url" value="${dest.url}" required>
+                                        <input type="text" name="destinations[${index}][name]" class="form-input destination-name" value="${dest.name || ''}" placeholder="Name (optional)">
+                                        <input type="number" name="destinations[${index}][weight]" class="form-input destination-weight" value="${dest.weight || 1}" min="1" max="100">
+                                        <button type="button" class="btn-remove-destination" onclick="removeModalDestination(this)">🗑️</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addModalDestination()">+ Add Destination</button>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeRotatorModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Rotator</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Setup form submission
+    document.getElementById('rotator-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        updateRotator(rotatorData.slug);
+    });
+}
+
+// Close rotator modal
+function closeRotatorModal(event) {
+    if (!event || event.target.classList.contains('modal-overlay') || event.target.classList.contains('modal-close')) {
+        const modal = document.getElementById('rotator-modal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+}
+
+// Add destination in modal
+function addModalDestination() {
+    const container = document.getElementById('modal-destinations-container');
+    const index = container.children.length;
+    
+    const destinationItem = document.createElement('div');
+    destinationItem.className = 'destination-item';
+    destinationItem.innerHTML = `
+        <div class="destination-inputs">
+            <input type="url" name="destinations[${index}][url]" class="form-input destination-url" placeholder="https://example.com/page-${index + 1}" required>
+            <input type="text" name="destinations[${index}][name]" class="form-input destination-name" placeholder="Name (optional)">
+            <input type="number" name="destinations[${index}][weight]" class="form-input destination-weight" value="1" min="1" max="100">
+            <button type="button" class="btn-remove-destination" onclick="removeModalDestination(this)">🗑️</button>
+        </div>
+    `;
+    
+    container.appendChild(destinationItem);
+}
+
+// Remove destination in modal
+function removeModalDestination(button) {
+    const container = document.getElementById('modal-destinations-container');
+    if (container.children.length > 1) {
+        button.closest('.destination-item').remove();
+        // Reindex
+        Array.from(container.children).forEach((item, index) => {
+            const inputs = item.querySelectorAll('input');
+            inputs[0].name = `destinations[${index}][url]`;
+            inputs[1].name = `destinations[${index}][name]`;
+            inputs[2].name = `destinations[${index}][weight]`;
+        });
+    } else {
+        showNotification('At least one destination is required', 'error');
+    }
+}
+
+// Update rotator
+async function updateRotator(slug) {
+    const form = document.getElementById('rotator-form');
+    const formData = new FormData(form);
+    
+    try {
+        const requestData = {
+            is_rotator: true,
+            rotation_type: formData.get('rotation_type'),
+            destinations: []
+        };
+        
+        // Collect destinations
+        const destinationInputs = document.querySelectorAll('#modal-destinations-container .destination-item');
+        destinationInputs.forEach((item, index) => {
+            const url = formData.get(`destinations[${index}][url]`);
+            const name = formData.get(`destinations[${index}][name]`);
+            const weight = formData.get(`destinations[${index}][weight]`);
             
-            // Reset button after success
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }, 2000);
-        } else {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            showNotification(`❌ Error: ${data.message}`, 'error');
-        }
-    } catch (error) {
-        console.error('Failed to reset all visitors:', error);
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        showNotification('❌ Failed to reset visitor counts. Please try again.', 'error');
-    }
-}
-
-async function deleteShortlink(slug) {
-    if (!confirm(`Are you sure you want to delete the shortlink "${slug}"?\n\nThis action cannot be undone.`)) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/delete/${slug}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json'
+            if (url) {
+                requestData.destinations.push({
+                    url: url,
+                    name: name || '',
+                    weight: parseInt(weight) || 1,
+                    active: true
+                });
             }
+        });
+        
+        const response = await fetch(`/api/rotator/${slug}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify(requestData)
         });
         
         const data = await response.json();
         
         if (data.ok) {
-            showNotification(`✅ Shortlink "${slug}" deleted successfully!`, 'success');
+            showNotification('Rotator updated successfully', 'success');
+            closeRotatorModal();
             loadLinks();
-            loadAnalytics();
         } else {
-            showNotification(`❌ Error: ${data.message}`, 'error');
+            showNotification(`Error: ${data.message}`, 'error');
         }
     } catch (error) {
-        console.error('Failed to delete shortlink:', error);
-        showNotification('❌ Failed to delete shortlink. Please try again.', 'error');
+        console.error('Failed to update rotator:', error);
+        showNotification('Failed to update rotator', 'error');
     }
 }
 
-// Add event listener for reset all button
-document.addEventListener('DOMContentLoaded', function() {
-    // Add existing event listeners...
+// Notification system
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+            <span class="notification-message">${message}</span>
+        </div>
+    `;
     
-    // Reset all visitors button
-    document.getElementById('resetAllVisitorsBtn').addEventListener('click', resetAllVisitors);
-});
+    document.body.appendChild(notification);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
 </script>
 @endsection

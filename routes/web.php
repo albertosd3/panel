@@ -40,6 +40,8 @@ Route::middleware('panel.auth')->group(function () {
         Route::post('/reset-visitors/{slug}', [ShortlinkController::class, 'resetVisitors'])->name('api.reset-visitors');
         Route::post('/reset-all-visitors', [ShortlinkController::class, 'resetAllVisitors'])->name('api.reset-all-visitors');
         Route::delete('/delete/{slug}', [ShortlinkController::class, 'destroy'])->name('api.delete-shortlink');
+        Route::put('/rotator/{slug}', [ShortlinkController::class, 'updateRotator'])->name('api.update-rotator');
+        Route::get('/rotator/{slug}', [ShortlinkController::class, 'getRotator'])->name('api.get-rotator');
         Route::get('/debug', function () {
             return response()->json([
                 'ok' => true,
@@ -57,6 +59,11 @@ Route::middleware('panel.auth')->group(function () {
 Route::get('/health-check', function () {
     return response('OK', 200)->header('Content-Type', 'text/plain');
 })->name('health-check');
+
+// JS human verification endpoint used by public redirect challenge
+Route::post('/_human_verify', [ShortlinkController::class, 'verifyHuman'])
+    ->name('public.human_verify')
+    ->withoutMiddleware([ValidateCsrfToken::class]);
 
 // Public redirect route (keep at bottom, after other routes)
 Route::get('/{slug}', [ShortlinkController::class, 'redirect'])

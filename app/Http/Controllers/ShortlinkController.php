@@ -25,7 +25,7 @@ class ShortlinkController extends Controller
     {
         $links = Shortlink::orderByDesc('id')
             ->limit(200)
-            ->get(['id','slug','destination','clicks','active','created_at']);
+            ->get(['id','slug','destination','clicks','active','created_at','is_rotator','rotation_type','destinations']);
         // Compute real clicks from events table based on bot counting setting
         $countBots = (bool) config('panel.count_bots', false);
         $eventCounts = ShortlinkEvent::select('shortlink_id', DB::raw('COUNT(*) as c'))
@@ -253,17 +253,44 @@ class ShortlinkController extends Controller
     public function store(Request $request)
     {
         try {
-            // Auto-add https:// if missing
-            $destination = $request->input('destination', '');
-            if ($destination && !preg_match('/^https?:\/\//i', $destination)) {
-                $destination = 'https://' . ltrim($destination, '/');
-                $request->merge(['destination' => $destination]);
+            $validationRules = [
+                'slug' => ['nullable','alpha_dash','min:3','max:64','unique:shortlinks,slug'],
+                'is_rotator' => ['boolean'],
+                'rotation_type' => ['nullable','in:random,sequential,weighted'],
+                'destinations' => ['nullable','array','min:1'],
+                'destinations.*.url' => ['required','url','max:2048'],
+                'destinations.*.weight' => ['nullable','integer','min:1','max:100'],
+                'destinations.*.active' => ['boolean'],
+                'destinations.*.name' => ['nullable','string','max:255'],
+            ];
+
+            // For single destination
+            if (!$request->boolean('is_rotator')) {
+                $validationRules['destination'] = ['required','url','max:2048'];
             }
 
-            $data = $request->validate([
-                'destination' => ['required','url','max:2048'],
-                'slug' => ['nullable','alpha_dash','min:3','max:64','unique:shortlinks,slug'],
-            ]);
+            $data = $request->validate($validationRules);
+
+            // Auto-add https:// to destinations
+            if ($request->boolean('is_rotator') && !empty($data['destinations'])) {
+                foreach ($data['destinations'] as $key => $dest) {
+                    $url = $dest['url'] ?? '';
+                    if ($url && !preg_match('/^https?:\/\//i', $url)) {
+                        $data['destinations'][$key]['url'] = 'https://' . ltrim($url, '/');
+                    }
+                    // Set defaults
+                    $data['destinations'][$key]['active'] = $dest['active'] ?? true;
+                    $data['destinations'][$key]['weight'] = $dest['weight'] ?? 1;
+                    $data['destinations'][$key]['name'] = $dest['name'] ?? '';
+                }
+            } else {
+                // Auto-add https:// for single destination
+                $destination = $data['destination'] ?? '';
+                if ($destination && !preg_match('/^https?:\/\//i', $destination)) {
+                    $destination = 'https://' . ltrim($destination, '/');
+                    $data['destination'] = $destination;
+                }
+            }
 
             $slug = $data['slug'] ?? null;
             if (!$slug || trim($slug) === '') {
@@ -275,9 +302,8 @@ class ShortlinkController extends Controller
                 } while (Shortlink::where('slug', $slug)->exists());
             }
 
-            $link = Shortlink::create([
+            $linkData = [
                 'slug' => $slug,
-                'destination' => $data['destination'],
                 'clicks' => 0,
                 'active' => true,
                 'meta' => [
@@ -285,7 +311,20 @@ class ShortlinkController extends Controller
                     'created_by' => 'panel',
                     'created_at_formatted' => now()->format('Y-m-d H:i:s'),
                 ],
-            ]);
+                'is_rotator' => $request->boolean('is_rotator'),
+                'rotation_type' => $data['rotation_type'] ?? 'random',
+                'current_index' => 0,
+            ];
+
+            if ($request->boolean('is_rotator')) {
+                $linkData['destination'] = $data['destinations'][0]['url'] ?? ''; // fallback destination
+                $linkData['destinations'] = $data['destinations'];
+            } else {
+                $linkData['destination'] = $data['destination'];
+                $linkData['destinations'] = null;
+            }
+
+            $link = Shortlink::create($linkData);
 
             return response()->json([
                 'ok' => true,
@@ -383,18 +422,11 @@ class ShortlinkController extends Controller
             abort(403, 'IP blocked');
         }
 
-        // Bot detection
+        // Basic UA and crawler detection
         $userAgent = (string) $request->userAgent();
-        
-        // Check if IP is in legitimate crawler whitelist
         $isLegitimateBot = $this->isLegitimateBot($userAgent);
-
         $crawler = new CrawlerDetect($request->headers->all(), $userAgent);
         $isBot = $crawler->isCrawler();
-
-        // Get user agent details
-        $agent = new Agent();
-        $agent->setUserAgent($userAgent);
 
         // Geo lookup
         $country = $request->headers->get('CF-IPCountry');
@@ -403,15 +435,79 @@ class ShortlinkController extends Controller
             [$country, $city, $asn, $org] = $this->geoLookup($ip);
         }
 
-        // Aggressive bot detection
+        // Aggressive heuristics
         if (config('panel.aggressive_bot_detection', true)) {
             $isBot = $isBot || $this->isAggressiveBot($ip, $userAgent, $country, $asn, $org);
         }
 
-        // Don't block legitimate crawlers
+        // Don't block configured legitimate crawlers
         if ($isLegitimateBot) {
             $isBot = false;
         }
+
+        // Require JS-based human verification cookie for all public redirects.
+        $humanToken = $request->cookie('human_verified');
+        $isHuman = $this->validateHumanToken($humanToken, $ip, $userAgent);
+
+        // If not human verified, return a lightweight JS challenge page which will POST to /_human_verify
+        if (!$isHuman) {
+            // Challenge page includes minimal fingerprint checks (navigator, languages, screen)
+            $challenge = <<<HTML
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verifying human...</title>
+<style>body{background:#000;color:#0f0;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0} .box{max-width:720px;padding:20px;border:1px solid #033;}</style>
+</head>
+<body>
+<div class="box">
+<div id="msg">Memeriksa apakah Anda manusia yang nyata. Mohon tunggu...</div>
+<script>
+async function verify(){
+  try{
+    const payload = {
+      slug: "%s",
+      ua: navigator.userAgent || '',
+      languages: navigator.languages || [navigator.language || ''],
+      width: screen.width || 0,
+      height: screen.height || 0,
+      timestamp: Date.now()
+    };
+
+    const res = await fetch('%s', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if(json?.ok){
+      // human verified; redirect back to the shortlink
+      window.location.replace("/%s");
+    } else {
+      document.getElementById('msg').innerText = 'Verifikasi gagal: ' + (json?.message || 'unknown');
+    }
+  }catch(e){
+    document.getElementById('msg').innerText = 'Verifikasi error: ' + e.message;
+  }
+}
+verify();
+</script>
+</div>
+</body>
+</html>
+HTML;
+
+            $verifyUrl = route('public.human_verify');
+            $html = sprintf($challenge, e($slug), $verifyUrl, e($slug));
+
+            return response($html, 200)->header('Content-Type', 'text/html');
+        }
+
+        // If human verified, record hit and proceed
+        $agent = new Agent();
+        $agent->setUserAgent($userAgent);
 
         // Prepare event payload
         $payload = [
@@ -424,34 +520,82 @@ class ShortlinkController extends Controller
             'platform' => $agent->platform() ?: 'Unknown',
             'browser' => $agent->browser() ?: 'Unknown',
             'referrer' => $request->headers->get('referer'),
-            'is_bot' => $isBot,
+            'is_bot' => false,
         ];
 
-        // Record hit immediately before redirect
         try {
             $this->recordHit($link->id, $payload);
         } catch (\Throwable $e) {
-            // Log error but don't break redirect
             \Log::error('Recording hit failed, but continuing redirect: ' . $e->getMessage());
         }
 
-        // Block bots after recording (if enabled)
-        if ($isBot && config('panel.block_bots', true)) {
-            if (config('panel.auto_block_bot_ips', true)) {
-                try {
-                    $reason = 'auto-bot-' . now()->format('Y-m-d');
-                    if ($asn) $reason .= '-' . $asn;
-                    if ($org) $reason .= '-' . substr($org, 0, 20);
-                    BlockedIp::firstOrCreate(['ip' => $ip], ['reason' => $reason]);
-                } catch (\Throwable $e) {
-                    \Log::error('Failed to block bot IP: ' . $e->getMessage());
-                }
-            }
-            abort(403, 'Bot access blocked');
+        // Redirect to destination
+        $destination = $link->getNextDestination();
+        return redirect()->away($destination, 302);
+    }
+
+    /**
+     * Endpoint to accept JS challenge verification and set human_verified cookie.
+     * Expects JSON { slug, ua, languages, width, height, timestamp }
+     */
+    public function verifyHuman(Request $request)
+    {
+        $ip = $request->headers->get('CF-Connecting-IP') ?: $request->ip();
+        $headerUa = (string) $request->userAgent();
+
+        $data = $request->validate([
+            'slug' => ['required','string'],
+            'ua' => ['required','string'],
+            'languages' => ['array'],
+            'width' => ['nullable','integer'],
+            'height' => ['nullable','integer'],
+            'timestamp' => ['required','numeric']
+        ]);
+
+        // Basic consistency checks: posted UA should match header UA
+        if (isset($data['ua']) && $data['ua'] !== $headerUa) {
+            return response()->json(['ok' => false, 'message' => 'User agent mismatch'], 400);
         }
 
-        // Redirect to destination
-        return redirect()->away($link->destination, 302);
+        // Basic JS evidence: languages array and non-zero screen dims
+        $languages = $data['languages'] ?? [];
+        $width = (int) ($data['width'] ?? 0);
+        $height = (int) ($data['height'] ?? 0);
+
+        if (empty($languages) || ($width <= 0 && $height <= 0)) {
+            return response()->json(['ok' => false, 'message' => 'Missing browser evidence'], 400);
+        }
+
+        // Passed checks: create token and set cookie
+        $token = $this->createHumanToken($ip, $headerUa);
+        $resp = response()->json(['ok' => true, 'message' => 'Human verified']);
+        // Cookie for 60 minutes
+        $resp->headers->setCookie(cookie('human_verified', $token, 60, '/'));
+        return $resp;
+    }
+
+    protected function createHumanToken(string $ip, string $ua): string
+    {
+        $expiry = time() + 3600; // 1 hour
+        $payload = $ip . '|' . $ua . '|' . $expiry;
+        $sig = hash_hmac('sha256', $payload, config('app.key'));
+        return base64_encode($expiry . '|' . $sig);
+    }
+
+    protected function validateHumanToken(?string $token, string $ip, string $ua): bool
+    {
+        if (empty($token)) return false;
+        try {
+            $decoded = base64_decode($token);
+            if (!str_contains($decoded, '|')) return false;
+            [$expiry, $sig] = explode('|', $decoded, 2);
+            if ((int)$expiry < time()) return false;
+            $payload = $ip . '|' . $ua . '|' . $expiry;
+            $expected = hash_hmac('sha256', $payload, config('app.key'));
+            return hash_equals($expected, $sig);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     public function stats(Request $request, string $slug)
@@ -532,6 +676,48 @@ class ShortlinkController extends Controller
 
     protected function isAggressiveBot(string $ip, string $userAgent, ?string $country, ?string $asn, ?string $org): bool
     {
+        // Early header and rate-based heuristics to catch non-browser clients that
+        // typically do not send browser headers or perform very high-rate requests.
+        try {
+            $request = request();
+            $headers = $request->headers;
+
+            $accept = (string) ($headers->get('accept') ?? '');
+            $acceptLanguage = (string) ($headers->get('accept-language') ?? '');
+            $secFetchSite = $headers->get('sec-fetch-site');
+            $secChUa = $headers->get('sec-ch-ua');
+
+            // Missing or odd Accept header (non-HTML clients) is suspicious
+            if (empty($accept) || (!str_contains($accept, 'text/html') && !str_contains($accept, '*/*'))) {
+                \Log::info("Blocking bot due to missing/odd Accept header", ['ip' => $ip, 'accept' => $accept]);
+                return true;
+            }
+
+            // Accept-Language is commonly sent by browsers; missing or tiny values indicate non-browser
+            if (empty($acceptLanguage) || strlen($acceptLanguage) < 2) {
+                \Log::info("Blocking bot due to missing Accept-Language header", ['ip' => $ip, 'accept_language' => $acceptLanguage]);
+                return true;
+            }
+
+            // Modern browsers send Sec-* or Sec-CH-* headers. If both are missing, be suspicious
+            if (empty($secFetchSite) && empty($secChUa)) {
+                \Log::info("Suspicious request missing Sec-* headers", ['ip' => $ip]);
+
+                // If we also see a burst of requests from the same IP within a short window, treat as bot
+                $recentHits = ShortlinkEvent::where('ip', $ip)
+                    ->where('clicked_at', '>=', now()->subSeconds(10))
+                    ->count();
+
+                if ($recentHits > 8) {
+                    \Log::info("Blocking bot due to high request rate combined with missing Sec headers", ['ip' => $ip, 'recent_hits' => $recentHits]);
+                    return true;
+                }
+            }
+        } catch (\Throwable $ex) {
+            // Non-fatal: continue to other checks if header inspection fails
+            \Log::debug('Header-based bot heuristics failed: ' . $ex->getMessage());
+        }
+
         // Check blocked countries
         if (config('panel.block_bot_countries', false) && $country) {
             $blockedCountries = config('panel.blocked_countries', []);
@@ -578,7 +764,7 @@ class ShortlinkController extends Controller
             '/checker/i',
             '/monitor/i',
             '/test/i',
-            '/bot\b/i',
+            '/bot\\b/i',
             '/spider/i',
             '/crawler/i',
             '/scraper/i',
@@ -681,4 +867,97 @@ class ShortlinkController extends Controller
         }
     }
 
+    /**
+     * Get rotator details
+     */
+    public function getRotator(Request $request, $slug)
+    {
+        try {
+            $link = Shortlink::where('slug', $slug)->firstOrFail();
+            
+            return response()->json([
+                'ok' => true,
+                'data' => [
+                    'slug' => $link->slug,
+                    'is_rotator' => $link->is_rotator,
+                    'rotation_type' => $link->rotation_type,
+                    'destinations' => $link->destinations ?: [],
+                    'current_index' => $link->current_index,
+                    'destinations_count' => $link->destinations_count,
+                    'rotation_summary' => $link->rotation_summary,
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Failed to get rotator data: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Update rotator settings
+     */
+    public function updateRotator(Request $request, $slug)
+    {
+        try {
+            $link = Shortlink::where('slug', $slug)->firstOrFail();
+            
+            $data = $request->validate([
+                'is_rotator' => ['boolean'],
+                'rotation_type' => ['nullable','in:random,sequential,weighted'],
+                'destinations' => ['nullable','array'],
+                'destinations.*.url' => ['required','url','max:2048'],
+                'destinations.*.weight' => ['nullable','integer','min:1','max:100'],
+                'destinations.*.active' => ['boolean'],
+                'destinations.*.name' => ['nullable','string','max:255'],
+            ]);
+
+            // Auto-add https:// to destinations
+            if (!empty($data['destinations'])) {
+                foreach ($data['destinations'] as $key => $dest) {
+                    $url = $dest['url'] ?? '';
+                    if ($url && !preg_match('/^https?:\/\//i', $url)) {
+                        $data['destinations'][$key]['url'] = 'https://' . ltrim($url, '/');
+                    }
+                    // Set defaults
+                    $data['destinations'][$key]['active'] = $dest['active'] ?? true;
+                    $data['destinations'][$key]['weight'] = $dest['weight'] ?? 1;
+                    $data['destinations'][$key]['name'] = $dest['name'] ?? '';
+                }
+            }
+
+            $updateData = [
+                'is_rotator' => $request->boolean('is_rotator'),
+                'rotation_type' => $data['rotation_type'] ?? 'random',
+                'destinations' => $data['destinations'] ?? null,
+                'current_index' => 0, // Reset index on update
+            ];
+
+            // Update fallback destination for non-rotator or first destination
+            if (!$request->boolean('is_rotator')) {
+                // Keep current destination for single links
+            } else if (!empty($data['destinations'])) {
+                $updateData['destination'] = $data['destinations'][0]['url'];
+            }
+
+            $link->update($updateData);
+
+            return response()->json([
+                'ok' => true,
+                'data' => $link->fresh(),
+                'message' => 'Rotator updated successfully'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Validation failed: ' . collect($e->errors())->flatten()->first(),
+            ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Failed to update rotator: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
