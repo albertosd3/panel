@@ -451,7 +451,7 @@ class ShortlinkController extends Controller
 
         // If not human verified, return a Cloudflare-like lightweight JS challenge page
         if (!$isHuman) {
-            $challenge = <<<'HTML'
+            $challenge = <<<HTML
 <!doctype html>
 <html>
 <head>
@@ -459,9 +459,9 @@ class ShortlinkController extends Controller
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Checking your browser...</title>
 <style>
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial}
+  html,body{height:100%%%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial}
   body{background:#f0f2f5;display:flex;align-items:center;justify-content:center}
-  .cf-box{background:#fff;padding:28px;border-radius:8px;box-shadow:0 6px 24px rgba(15,23,42,0.08);text-align:center;max-width:560px;width:90%}
+  .cf-box{background:#fff;padding:28px;border-radius:8px;box-shadow:0 6px 24px rgba(15,23,42,0.08);text-align:center;max-width:560px;width:90%%}
   .cf-logo{font-weight:700;color:#f48024;font-size:28px;margin-bottom:12px}
   .spinner{width:56px;height:56px;border-radius:50%;border:6px solid #eef2f7;border-top-color:#f48024;margin:12px auto 6px;animation:spin 1s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
