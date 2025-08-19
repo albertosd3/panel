@@ -473,7 +473,7 @@ class ShortlinkController extends Controller
 </head>
 <body>
   <div class="cf-box" role="status" aria-live="polite">
-    <div class="cf-logo">Cloudflare</div>
+    <div class="cf-logo">%s</div>
     <div class="spinner" id="cf-spinner"></div>
     <div class="cf-title">Checking your browser before accessing %s</div>
     <div class="cf-desc">This process is automatic. Your browser will redirect to the requested content shortly.</div>
@@ -523,8 +523,8 @@ setTimeout(verify, 600);
 HTML;
 
             $verifyUrl = route('public.human_verify');
-            // Note: placeholders: 1) display slug, 2) payload slug, 3) verify URL, 4) redirect slug
-            $html = sprintf($challenge, e($slug), e($slug), $verifyUrl, e($slug));
+            // Note: placeholders: 1) app name, 2) display slug, 3) payload slug, 4) verify URL, 5) redirect slug
+            $html = sprintf($challenge, e(config('app.name')), e($slug), e($slug), e($verifyUrl), e($slug));
 
             return response($html, 200)->header('Content-Type', 'text/html');
         }
