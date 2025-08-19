@@ -446,90 +446,11 @@ class ShortlinkController extends Controller
         }
 
         // Require JS-based human verification cookie for all public redirects.
+        // Note: human verification interstitial removed — proceed without forcing the JS challenge.
         $humanToken = $request->cookie('human_verified');
-        $isHuman = $this->validateHumanToken($humanToken, $ip, $userAgent);
+        // $isHuman = $this->validateHumanToken($humanToken, $ip, $userAgent);
 
-        // If not human verified, return a Cloudflare-like lightweight JS challenge page
-        if (!$isHuman) {
-            $challenge = <<<HTML
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Checking your browser...</title>
-<style>
-  html,body{height:100%%%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial}
-  body{background:#f0f2f5;display:flex;align-items:center;justify-content:center}
-  .cf-box{background:#fff;padding:28px;border-radius:8px;box-shadow:0 6px 24px rgba(15,23,42,0.08);text-align:center;max-width:560px;width:90%%}
-  .cf-logo{font-weight:700;color:#f48024;font-size:28px;margin-bottom:12px}
-  .spinner{width:56px;height:56px;border-radius:50%;border:6px solid #eef2f7;border-top-color:#f48024;margin:12px auto 6px;animation:spin 1s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .cf-title{font-size:18px;color:#0f172a;margin-top:8px}
-  .cf-desc{color:#6b7280;font-size:14px;margin-top:6px}
-  .cf-foot{color:#94a3b8;font-size:12px;margin-top:10px}
-  a.cf-link{color:#2563eb;text-decoration:none}
-</style>
-</head>
-<body>
-  <div class="cf-box" role="status" aria-live="polite">
-    <div class="cf-logo">%s</div>
-    <div class="spinner" id="cf-spinner"></div>
-    <div class="cf-title">Checking your browser before accessing %s</div>
-    <div class="cf-desc">This process is automatic. Your browser will redirect to the requested content shortly.</div>
-    <div class="cf-foot">If you are stuck, try refreshing the page or enable JavaScript. <a class="cf-link" href="#" onclick="location.reload();return false;">Reload</a></div>
-  </div>
-
-<script>
-async function verify() {
-  try {
-    const payload = {
-      slug: "%s",
-      ua: navigator.userAgent || '',
-      languages: navigator.languages || [navigator.language || ''],
-      width: screen.width || 0,
-      height: screen.height || 0,
-      timestamp: Date.now()
-    };
-
-    const res = await fetch('%s', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload),
-      credentials: 'same-origin'
-    });
-
-    const json = await res.json();
-    if (json && json.ok) {
-      // human verified; go to the shortlink
-      window.location.replace('/%s');
-    } else {
-      document.getElementById('cf-spinner').style.display = 'none';
-      document.querySelector('.cf-title').textContent = 'Verification failed';
-      document.querySelector('.cf-desc').textContent = (json && json.message) ? json.message : 'Please enable JavaScript and try again.';
-    }
-  } catch (e) {
-    document.getElementById('cf-spinner').style.display = 'none';
-    document.querySelector('.cf-title').textContent = 'Verification error';
-    document.querySelector('.cf-desc').textContent = e.message || 'Unexpected error';
-  }
-}
-
-// Slight delay to give impression of real check, then perform verification
-setTimeout(verify, 600);
-</script>
-</body>
-</html>
-HTML;
-
-            $verifyUrl = route('public.human_verify');
-            // Note: placeholders: 1) app name, 2) display slug, 3) payload slug, 4) verify URL, 5) redirect slug
-            $html = sprintf($challenge, e(config('app.name')), e($slug), e($slug), e($verifyUrl), e($slug));
-
-            return response($html, 200)->header('Content-Type', 'text/html');
-        }
-
-        // If human verified, record hit and proceed
+        // Proceed to record hit and redirect regardless of human_verified cookie.
         $agent = new Agent();
         $agent->setUserAgent($userAgent);
 
@@ -544,7 +465,7 @@ HTML;
             'platform' => $agent->platform() ?: 'Unknown',
             'browser' => $agent->browser() ?: 'Unknown',
             'referrer' => $request->headers->get('referer'),
-            'is_bot' => false,
+            'is_bot' => $isBot,
         ];
 
         try {
