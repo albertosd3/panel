@@ -1077,6 +1077,87 @@ function setupEventListeners() {
         e.preventDefault();
         createShortlink();
     });
+
+    // Reset all visitors button
+    const resetAllBtn = document.getElementById('resetAllVisitorsBtn');
+    if (resetAllBtn) {
+        resetAllBtn.addEventListener('click', async function() {
+            if (!confirm('Are you sure you want to reset visitor counts for ALL shortlinks? This cannot be undone.')) return;
+            try {
+                const resp = await fetch('/api/reset-all-visitors', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                });
+                const json = await resp.json();
+                if (json?.ok) {
+                    showNotification(json.message || 'All visitor counts reset', 'success');
+                    loadLinks();
+                    loadAnalytics();
+                } else {
+                    showNotification('Error: ' + (json?.message || 'Failed to reset'), 'error');
+                }
+            } catch (err) {
+                console.error('Failed to reset all visitors:', err);
+                showNotification('Failed to reset all visitors', 'error');
+            }
+        });
+    }
+}
+
+// Reset visitor count for a specific shortlink
+async function resetVisitors(slug) {
+    if (!confirm(`Are you sure you want to reset visitor count for "${slug}"?`)) return;
+    try {
+        const resp = await fetch(`/api/reset-visitors/${slug}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+        const json = await resp.json();
+        if (json?.ok) {
+            showNotification(json.message || `Visitor count reset for ${slug}`, 'success');
+            loadLinks();
+            loadAnalytics();
+        } else {
+            showNotification('Error: ' + (json?.message || 'Failed to reset'), 'error');
+        }
+    } catch (err) {
+        console.error('Failed to reset visitors:', err);
+        showNotification('Failed to reset visitors', 'error');
+    }
+}
+
+// Delete a shortlink
+async function deleteShortlink(slug) {
+    if (!confirm(`Are you sure you want to DELETE the shortlink "${slug}"? This will remove the link and all its analytics.`)) return;
+    try {
+        const resp = await fetch(`/api/delete/${slug}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+        const json = await resp.json();
+        if (json?.ok) {
+            showNotification(json.message || `Shortlink ${slug} deleted`, 'success');
+            loadLinks();
+            loadAnalytics();
+        } else {
+            showNotification('Error: ' + (json?.message || 'Failed to delete'), 'error');
+        }
+    } catch (err) {
+        console.error('Failed to delete shortlink:', err);
+        showNotification('Failed to delete shortlink', 'error');
+    }
 }
 
 async function loadAnalytics() {
