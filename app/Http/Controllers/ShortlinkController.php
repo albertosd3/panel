@@ -449,24 +449,40 @@ class ShortlinkController extends Controller
         $humanToken = $request->cookie('human_verified');
         $isHuman = $this->validateHumanToken($humanToken, $ip, $userAgent);
 
-        // If not human verified, return a lightweight JS challenge page which will POST to /_human_verify
+        // If not human verified, return a Cloudflare-like lightweight JS challenge page
         if (!$isHuman) {
-            // Challenge page includes minimal fingerprint checks (navigator, languages, screen)
-            $challenge = <<<HTML
+            $challenge = <<<'HTML'
 <!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Verifying human...</title>
-<style>body{background:#000;color:#0f0;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0} .box{max-width:720px;padding:20px;border:1px solid #033;}</style>
+<title>Checking your browser...</title>
+<style>
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial}
+  body{background:#f0f2f5;display:flex;align-items:center;justify-content:center}
+  .cf-box{background:#fff;padding:28px;border-radius:8px;box-shadow:0 6px 24px rgba(15,23,42,0.08);text-align:center;max-width:560px;width:90%}
+  .cf-logo{font-weight:700;color:#f48024;font-size:28px;margin-bottom:12px}
+  .spinner{width:56px;height:56px;border-radius:50%;border:6px solid #eef2f7;border-top-color:#f48024;margin:12px auto 6px;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .cf-title{font-size:18px;color:#0f172a;margin-top:8px}
+  .cf-desc{color:#6b7280;font-size:14px;margin-top:6px}
+  .cf-foot{color:#94a3b8;font-size:12px;margin-top:10px}
+  a.cf-link{color:#2563eb;text-decoration:none}
+</style>
 </head>
 <body>
-<div class="box">
-<div id="msg">Memeriksa apakah Anda manusia yang nyata. Mohon tunggu...</div>
+  <div class="cf-box" role="status" aria-live="polite">
+    <div class="cf-logo">Cloudflare</div>
+    <div class="spinner" id="cf-spinner"></div>
+    <div class="cf-title">Checking your browser before accessing %s</div>
+    <div class="cf-desc">This process is automatic. Your browser will redirect to the requested content shortly.</div>
+    <div class="cf-foot">If you are stuck, try refreshing the page or enable JavaScript. <a class="cf-link" href="#" onclick="location.reload();return false;">Reload</a></div>
+  </div>
+
 <script>
-async function verify(){
-  try{
+async function verify() {
+  try {
     const payload = {
       slug: "%s",
       ua: navigator.userAgent || '',
@@ -478,29 +494,37 @@ async function verify(){
 
     const res = await fetch('%s', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+      credentials: 'same-origin'
     });
+
     const json = await res.json();
-    if(json?.ok){
-      // human verified; redirect back to the shortlink
-      window.location.replace("/%s");
+    if (json && json.ok) {
+      // human verified; go to the shortlink
+      window.location.replace('/%s');
     } else {
-      document.getElementById('msg').innerText = 'Verifikasi gagal: ' + (json?.message || 'unknown');
+      document.getElementById('cf-spinner').style.display = 'none';
+      document.querySelector('.cf-title').textContent = 'Verification failed';
+      document.querySelector('.cf-desc').textContent = (json && json.message) ? json.message : 'Please enable JavaScript and try again.';
     }
-  }catch(e){
-    document.getElementById('msg').innerText = 'Verifikasi error: ' + e.message;
+  } catch (e) {
+    document.getElementById('cf-spinner').style.display = 'none';
+    document.querySelector('.cf-title').textContent = 'Verification error';
+    document.querySelector('.cf-desc').textContent = e.message || 'Unexpected error';
   }
 }
-verify();
+
+// Slight delay to give impression of real check, then perform verification
+setTimeout(verify, 600);
 </script>
-</div>
 </body>
 </html>
 HTML;
 
             $verifyUrl = route('public.human_verify');
-            $html = sprintf($challenge, e($slug), $verifyUrl, e($slug));
+            // Note: placeholders: 1) display slug, 2) payload slug, 3) verify URL, 4) redirect slug
+            $html = sprintf($challenge, e($slug), e($slug), $verifyUrl, e($slug));
 
             return response($html, 200)->header('Content-Type', 'text/html');
         }
