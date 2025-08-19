@@ -28,6 +28,7 @@ Route::middleware('panel.auth')->group(function () {
     Route::get('/panel/analytics', [ShortlinkController::class, 'analytics'])->name('panel.analytics');
     Route::post('/panel/shortlinks', [ShortlinkController::class, 'store'])->name('panel.shortlinks.store');
     Route::get('/panel/shortlinks/{slug}/stats', [ShortlinkController::class, 'stats'])->name('panel.shortlinks.stats');
+    Route::put('/panel/shortlinks/{slug}/destinations', [ShortlinkController::class, 'updateDestinations'])->name('panel.shortlinks.update.destinations');
 
     Route::post('/panel/logout', [PanelAuthController::class, 'logout'])->name('panel.logout');
     Route::post('/logout', [PanelAuthController::class, 'logout'])->name('logout');

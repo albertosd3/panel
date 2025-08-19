@@ -960,4 +960,76 @@ HTML;
             ], 500);
         }
     }
+
+    /**
+     * Update destinations for an existing shortlink.
+     * Supports converting single -> rotator and vice-versa, or editing destinations in place.
+     */
+    public function updateDestinations(Request $request, $slug)
+    {
+        try {
+            $link = Shortlink::where('slug', $slug)->firstOrFail();
+
+            $data = $request->validate([
+                'is_rotator' => ['boolean'],
+                'rotation_type' => ['nullable','in:random,sequential,weighted'],
+                'destination' => ['nullable','url','max:2048'],
+                'destinations' => ['nullable','array'],
+                'destinations.*.url' => ['required_with:destinations','url','max:2048'],
+                'destinations.*.weight' => ['nullable','integer','min:1','max:100'],
+                'destinations.*.active' => ['boolean'],
+                'destinations.*.name' => ['nullable','string','max:255'],
+            ]);
+
+            // Normalize URLs: add https:// if missing
+            if (!empty($data['destinations'])) {
+                foreach ($data['destinations'] as $key => $dest) {
+                    $url = $dest['url'] ?? '';
+                    if ($url && !preg_match('/^https?:\/\//i', $url)) {
+                        $data['destinations'][$key]['url'] = 'https://' . ltrim($url, '/');
+                    }
+                    $data['destinations'][$key]['active'] = $dest['active'] ?? true;
+                    $data['destinations'][$key]['weight'] = $dest['weight'] ?? 1;
+                    $data['destinations'][$key]['name'] = $dest['name'] ?? '';
+                }
+            }
+
+            $update = [];
+            $isRotator = $request->boolean('is_rotator', $link->is_rotator);
+
+            if ($isRotator) {
+                // Ensure destinations provided
+                if (empty($data['destinations'])) {
+                    return response()->json(['ok' => false, 'message' => 'Destinations are required for rotator links'], 422);
+                }
+
+                $update['is_rotator'] = true;
+                $update['rotation_type'] = $data['rotation_type'] ?? $link->rotation_type ?? 'random';
+                $update['destinations'] = $data['destinations'];
+                // Set fallback destination to first active destination
+                $first = current(array_values(array_filter($data['destinations'], fn($d) => $d['active'] ?? true)));
+                $update['destination'] = $first['url'] ?? ($data['destinations'][0]['url'] ?? $link->destination);
+                $update['current_index'] = 0;
+            } else {
+                // Single destination link
+                $newDest = $data['destination'] ?? null;
+                if (empty($newDest)) {
+                    return response()->json(['ok' => false, 'message' => 'Destination URL is required for single links'], 422);
+                }
+
+                $update['is_rotator'] = false;
+                $update['destinations'] = null;
+                $update['destination'] = $newDest;
+                $update['current_index'] = 0;
+            }
+
+            $link->update($update);
+
+            return response()->json(['ok' => true, 'data' => $link->fresh(), 'message' => 'Destinations updated successfully']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['ok' => false, 'message' => collect($e->errors())->flatten()->first()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => 'Failed to update destinations: ' . $e->getMessage()], 500);
+        }
+    }
 }
