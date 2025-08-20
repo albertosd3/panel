@@ -977,4 +977,37 @@ class ShortlinkController extends Controller
             return response()->json(['ok' => false, 'message' => 'Failed to update destinations: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Show page listing detected IPs that accessed shortlinks
+     */
+    public function ips()
+    {
+        return view('panel.ips');
+    }
+
+    /**
+     * Return JSON list of IPs that accessed shortlinks with aggregated data
+     */
+    public function ipsList(Request $request)
+    {
+        $q = $request->get('q');
+
+        $query = ShortlinkEvent::select(
+            'shortlink_events.ip',
+            DB::raw('COUNT(*) as hits'),
+            DB::raw('MAX(shortlink_events.clicked_at) as last_seen'),
+            DB::raw("GROUP_CONCAT(DISTINCT shortlinks.slug) as slugs")
+        )
+        ->leftJoin('shortlinks', 'shortlink_events.shortlink_id', '=', 'shortlinks.id')
+        ->when($q, function ($qry) use ($q) {
+            $qry->where('shortlink_events.ip', 'like', '%' . $q . '%');
+        })
+        ->groupBy('shortlink_events.ip')
+        ->orderByDesc('hits')
+        ->limit(1000)
+        ->get();
+
+        return response()->json(['ok' => true, 'data' => $query]);
+    }
 }
