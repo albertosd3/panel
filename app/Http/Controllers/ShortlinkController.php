@@ -6,6 +6,7 @@ use App\Jobs\RecordShortlinkHit;
 use App\Models\BlockedIp;
 use App\Models\Shortlink;
 use App\Models\ShortlinkEvent;
+use App\Models\ShortlinkVisitor;
 use GeoIp2\Database\Reader as GeoIP2Reader;
 use GeoIp2\WebService\Client as GeoIP2Client;
 use Illuminate\Http\Request;
@@ -398,6 +399,29 @@ class ShortlinkController extends Controller
                         'clicks' => DB::raw('clicks + 1')
                     ]);
                 }
+
+                // Record visitor summary (upsert per IP)
+                try {
+                    $ip = $payload['ip'] ?? null;
+                    if ($ip) {
+                        $visitor = ShortlinkVisitor::firstOrNew([
+                            'shortlink_id' => $shortlinkId,
+                            'ip' => $ip,
+                        ]);
+
+                        if (!$visitor->exists) {
+                            $visitor->first_seen = now();
+                            $visitor->hits = 0;
+                        }
+
+                        $visitor->hits = ($visitor->hits ?? 0) + 1;
+                        $visitor->last_seen = now();
+                        $visitor->is_bot = $isBot;
+                        $visitor->save();
+                    }
+                } catch (\Throwable $e) {
+                    \Log::error('Failed to upsert shortlink visitor: ' . $e->getMessage(), ['shortlink_id' => $shortlinkId, 'payload' => $payload]);
+                }
             });
         } catch (\Throwable $e) {
             \Log::error('Failed to record hit: ' . $e->getMessage(), [
@@ -589,6 +613,32 @@ class ShortlinkController extends Controller
             'last_200' => $events,
             'aggregate' => $agg,
         ]]);
+    }
+
+    /**
+     * Show visitors page for a shortlink
+     */
+    public function visitors(Request $request, $slug)
+    {
+        $link = Shortlink::where('slug', $slug)->firstOrFail();
+        return view('panel.visitors', ['link' => $link]);
+    }
+
+    /**
+     * Return JSON list of visitors for a shortlink
+     */
+    public function visitorsList(Request $request, $slug)
+    {
+        $link = Shortlink::where('slug', $slug)->firstOrFail();
+        $q = $request->get('q');
+
+        $query = ShortlinkVisitor::where('shortlink_id', $link->id)
+            ->when($q, fn($qq) => $qq->where('ip', 'like', '%' . $q . '%'))
+            ->orderByDesc('last_seen')
+            ->limit(200)
+            ->get(['ip','hits','first_seen','last_seen','is_bot','country','city','asn','org']);
+
+        return response()->json(['ok' => true, 'data' => $query]);
     }
 
     protected function isLegitimateBot(string $userAgent): bool

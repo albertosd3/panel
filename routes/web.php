@@ -29,6 +29,7 @@ Route::middleware('panel.auth')->group(function () {
     Route::post('/panel/shortlinks', [ShortlinkController::class, 'store'])->name('panel.shortlinks.store');
     Route::get('/panel/shortlinks/{slug}/stats', [ShortlinkController::class, 'stats'])->name('panel.shortlinks.stats');
     Route::put('/panel/shortlinks/{slug}/destinations', [ShortlinkController::class, 'updateDestinations'])->name('panel.shortlinks.update.destinations');
+    Route::get('/panel/shortlinks/{slug}/visitors', [ShortlinkController::class, 'visitors'])->name('panel.shortlinks.visitors');
 
     // IPs management UI
     Route::get('/panel/ips', [ShortlinkController::class, 'ips'])->name('panel.ips');
