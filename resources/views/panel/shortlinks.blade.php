@@ -1159,6 +1159,8 @@ function setupEventListeners() {
 // Toggle Stopbot status function
 async function toggleStopbot() {
     const btn = document.getElementById('toggleStopbotBtn');
+    if (!btn) return;
+    
     const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = '⏳ Processing...';
@@ -1168,7 +1170,7 @@ async function toggleStopbot() {
         const currentStatus = {{ \App\Models\PanelSetting::get('stopbot_enabled', false) ? 'true' : 'false' }};
         const newStatus = !currentStatus;
 
-        const response = await fetch('/panel/api/stopbot/config', {
+        const response = await fetch('/api/stopbot/config', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1183,6 +1185,10 @@ async function toggleStopbot() {
             })
         });
 
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const result = await response.json();
         
         if (result.ok) {
@@ -1190,11 +1196,10 @@ async function toggleStopbot() {
             // Reload page to update status displays
             setTimeout(() => location.reload(), 1000);
         } else {
-            showNotification('Error: ' + (result.message || 'Failed to toggle Stopbot'), 'error');
-            btn.textContent = originalText;
-            btn.disabled = false;
+            throw new Error(result.message || 'Failed to toggle Stopbot');
         }
     } catch (error) {
+        console.error('Toggle Stopbot Error:', error);
         showNotification('Error: ' + error.message, 'error');
         btn.textContent = originalText;
         btn.disabled = false;

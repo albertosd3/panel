@@ -402,7 +402,7 @@ class ShortlinkController extends Controller
                     ]);
                 }
 
-                // Record visitor summary (upsert per IP) - ALWAYS save, regardless of bot status
+                // Record visitor summary (upsert per IP)
                 try {
                     $ip = $payload['ip'] ?? null;
                     if ($ip) {
@@ -414,22 +414,11 @@ class ShortlinkController extends Controller
                         if (!$visitor->exists) {
                             $visitor->first_seen = now();
                             $visitor->hits = 0;
-                            $visitor->country = $payload['country'] ?? null;
-                            $visitor->city = $payload['city'] ?? null;
-                            $visitor->asn = $payload['asn'] ?? null;
-                            $visitor->org = $payload['org'] ?? null;
                         }
 
                         $visitor->hits = ($visitor->hits ?? 0) + 1;
                         $visitor->last_seen = now();
                         $visitor->is_bot = $isBot;
-                        
-                        // Always update latest geo data
-                        $visitor->country = $payload['country'] ?? $visitor->country;
-                        $visitor->city = $payload['city'] ?? $visitor->city;
-                        $visitor->asn = $payload['asn'] ?? $visitor->asn;
-                        $visitor->org = $payload['org'] ?? $visitor->org;
-                        
                         $visitor->save();
                     }
                 } catch (\Throwable $e) {
@@ -1061,63 +1050,28 @@ class ShortlinkController extends Controller
     }
 
     /**
-     * Return JSON list of unique IPs across all shortlinks with aggregated data
+     * Return JSON list of IPs that accessed shortlinks with aggregated data
      */
     public function ipsList(Request $request)
     {
         $q = $request->get('q');
-        $limit = $request->get('limit', 1000);
 
-        $query = ShortlinkVisitor::select([
-            'ip',
-            DB::raw('SUM(hits) as total_hits'),
-            DB::raw('MAX(last_seen) as last_seen'),
-            DB::raw('MIN(first_seen) as first_seen'),
-            DB::raw('COUNT(DISTINCT shortlink_id) as shortlinks_accessed'),
-            DB::raw('MAX(CASE WHEN is_bot = 1 THEN 1 ELSE 0 END) as is_bot'),
-            DB::raw('GROUP_CONCAT(DISTINCT shortlinks.slug) as slugs'),
-            'country',
-            'city', 
-            'asn',
-            'org'
-        ])
-        ->leftJoin('shortlinks', 'shortlink_visitors.shortlink_id', '=', 'shortlinks.id')
+        $query = ShortlinkEvent::select(
+            'shortlink_events.ip',
+            DB::raw('COUNT(*) as hits'),
+            DB::raw('MAX(shortlink_events.clicked_at) as last_seen'),
+            DB::raw("GROUP_CONCAT(DISTINCT shortlinks.slug) as slugs")
+        )
+        ->leftJoin('shortlinks', 'shortlink_events.shortlink_id', '=', 'shortlinks.id')
         ->when($q, function ($qry) use ($q) {
-            $qry->where('shortlink_visitors.ip', 'like', '%' . $q . '%');
+            $qry->where('shortlink_events.ip', 'like', '%' . $q . '%');
         })
-        ->groupBy(['ip', 'country', 'city', 'asn', 'org'])
-        ->orderByDesc('total_hits')
-        ->limit($limit)
+        ->groupBy('shortlink_events.ip')
+        ->orderByDesc('hits')
+        ->limit(1000)
         ->get();
 
         return response()->json(['ok' => true, 'data' => $query]);
-    }
-
-    /**
-     * Get real-time IP statistics
-     */
-    public function getIpStats(Request $request)
-    {
-        try {
-            $totalUniqueIps = ShortlinkVisitor::distinct('ip')->count();
-            $totalHits = ShortlinkVisitor::sum('hits');
-            $botIps = ShortlinkVisitor::where('is_bot', true)->distinct('ip')->count();
-            $humanIps = ShortlinkVisitor::where('is_bot', false)->distinct('ip')->count();
-            $recentVisitors = ShortlinkVisitor::where('last_seen', '>=', now()->subHours(24))->distinct('ip')->count();
-
-            return response()->json([
-                'ok' => true,
-                'data' => [
-                    'total_unique_ips' => $totalUniqueIps,
-                    'total_hits' => $totalHits,
-                    'bot_ips' => $botIps,
-                    'human_ips' => $humanIps,
-                    'recent_24h' => $recentVisitors
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
-        }
     }
 
     /**
@@ -1133,23 +1087,28 @@ class ShortlinkController extends Controller
      */
     public function saveStopbotConfig(Request $request)
     {
-        $data = $request->validate([
-            'enabled' => 'boolean',
-            'api_key' => 'nullable|string|max:255',
-            'redirect_url' => 'nullable|url|max:255',
-            'log_enabled' => 'boolean',
-            'timeout' => 'nullable|integer|min:1|max:30'
-        ]);
-
         try {
+            $data = $request->validate([
+                'enabled' => 'boolean',
+                'api_key' => 'nullable|string|max:255',
+                'redirect_url' => 'nullable|string|max:255',
+                'log_enabled' => 'boolean',
+                'timeout' => 'nullable|integer|min:1|max:30'
+            ]);
+
             // Save to database instead of .env
-            \App\Models\PanelSetting::set('stopbot_enabled', $data['enabled'], 'boolean', 'stopbot', 'Enable Stopbot.net integration');
-            \App\Models\PanelSetting::set('stopbot_api_key', $data['api_key'] ?? '', 'string', 'stopbot', 'Stopbot.net API key');
-            \App\Models\PanelSetting::set('stopbot_redirect_url', $data['redirect_url'] ?? '', 'string', 'stopbot', 'URL to redirect blocked requests');
-            \App\Models\PanelSetting::set('stopbot_log_enabled', $data['log_enabled'], 'boolean', 'stopbot', 'Enable Stopbot logging');
-            \App\Models\PanelSetting::set('stopbot_timeout', $data['timeout'] ?? 5, 'integer', 'stopbot', 'API timeout in seconds');
+            PanelSetting::set('stopbot_enabled', $data['enabled'], 'boolean', 'stopbot', 'Enable Stopbot.net integration');
+            PanelSetting::set('stopbot_api_key', $data['api_key'] ?? '', 'string', 'stopbot', 'Stopbot.net API key');
+            PanelSetting::set('stopbot_redirect_url', $data['redirect_url'] ?? '', 'string', 'stopbot', 'URL to redirect blocked requests');
+            PanelSetting::set('stopbot_log_enabled', $data['log_enabled'], 'boolean', 'stopbot', 'Enable Stopbot logging');
+            PanelSetting::set('stopbot_timeout', $data['timeout'] ?? 5, 'integer', 'stopbot', 'API timeout in seconds');
 
             return response()->json(['ok' => true, 'message' => 'Configuration saved successfully']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'ok' => false, 
+                'message' => 'Validation error: ' . collect($e->errors())->flatten()->first()
+            ], 422);
         } catch (\Exception $e) {
             return response()->json(['ok' => false, 'message' => 'Failed to save configuration: ' . $e->getMessage()], 500);
         }
@@ -1184,9 +1143,14 @@ class ShortlinkController extends Controller
      */
     public function testStopbotApi(Request $request)
     {
-        $apiKey = $request->validate(['api_key' => 'required|string'])['api_key'];
-
         try {
+            \Log::info('Stopbot API test started', ['request_data' => $request->all()]);
+            
+            $data = $request->validate(['api_key' => 'required|string']);
+            $apiKey = $data['api_key'];
+
+            \Log::info('Making Stopbot API request', ['api_key' => substr($apiKey, 0, 8) . '...']);
+
             $response = Http::timeout(10)->get('https://stopbot.net/api/blocker', [
                 'apikey' => $apiKey,
                 'ip' => '8.8.8.8', // Google DNS for testing
@@ -1195,15 +1159,52 @@ class ShortlinkController extends Controller
                 'rand' => rand(1, 1000000)
             ]);
 
+            \Log::info('Stopbot API response received', [
+                'status' => $response->status(),
+                'headers' => $response->headers(),
+                'body_length' => strlen($response->body()),
+                'body_preview' => substr($response->body(), 0, 100)
+            ]);
+
             if (!$response->successful()) {
-                return response()->json(['ok' => false, 'message' => 'HTTP ' . $response->status()]);
+                $errorMessage = 'HTTP Error ' . $response->status() . ': ' . $response->body();
+                \Log::error('Stopbot API error', ['error' => $errorMessage]);
+                return response()->json([
+                    'ok' => false, 
+                    'message' => $errorMessage
+                ]);
             }
 
-            $data = $response->json();
+            $responseBody = $response->body();
+            
+            // Check if response is JSON
+            $data = json_decode($responseBody, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $errorMessage = 'Invalid JSON response from Stopbot API: ' . substr($responseBody, 0, 200);
+                \Log::error('Stopbot API JSON error', ['error' => $errorMessage, 'json_error' => json_last_error_msg()]);
+                return response()->json([
+                    'ok' => false, 
+                    'message' => $errorMessage
+                ]);
+            }
+
+            \Log::info('Stopbot API test successful', ['response_data' => $data]);
             return response()->json(['ok' => true, 'data' => $data]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errorMessage = 'Validation error: ' . collect($e->errors())->flatten()->first();
+            \Log::error('Stopbot API validation error', ['error' => $errorMessage]);
+            return response()->json([
+                'ok' => false, 
+                'message' => $errorMessage
+            ], 422);
         } catch (\Exception $e) {
-            return response()->json(['ok' => false, 'message' => $e->getMessage()]);
+            $errorMessage = 'Connection error: ' . $e->getMessage();
+            \Log::error('Stopbot API exception', ['error' => $errorMessage, 'trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'ok' => false, 
+                'message' => $errorMessage
+            ]);
         }
     }
 }

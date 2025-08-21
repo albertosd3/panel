@@ -95,7 +95,7 @@ document.getElementById('stopbotForm').addEventListener('submit', async (e) => {
     };
 
     try {
-        const response = await fetch('/panel/api/stopbot/config', {
+        const response = await fetch('/api/stopbot/config', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -125,8 +125,13 @@ document.getElementById('testBtn').addEventListener('click', async () => {
         return;
     }
 
+    const testBtn = document.getElementById('testBtn');
+    const originalText = testBtn.textContent;
+    testBtn.disabled = true;
+    testBtn.textContent = '⏳ Testing...';
+
     try {
-        const response = await fetch('/panel/api/stopbot/test', {
+        const response = await fetch('/api/stopbot/test', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -135,7 +140,22 @@ document.getElementById('testBtn').addEventListener('click', async () => {
             body: JSON.stringify({ api_key: apiKey })
         });
 
-        const result = await response.json();
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+        
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}`);
+        }
         
         if (result.ok) {
             alert('✅ API connection successful!\n\nResponse: ' + JSON.stringify(result.data, null, 2));
@@ -143,13 +163,17 @@ document.getElementById('testBtn').addEventListener('click', async () => {
             alert('❌ API test failed: ' + (result.message || 'Unknown error'));
         }
     } catch (error) {
+        console.error('Test API Error:', error);
         alert('❌ Connection error: ' + error.message);
+    } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = originalText;
     }
 });
 
 document.getElementById('loadStatsBtn').addEventListener('click', async () => {
     try {
-        const response = await fetch('/panel/api/stopbot/stats', {
+        const response = await fetch('/api/stopbot/stats', {
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             }
