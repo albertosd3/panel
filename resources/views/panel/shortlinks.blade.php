@@ -775,6 +775,12 @@
                 </div>
             </div>
             <div class="header-actions">
+                <a href="{{ route('panel.stopbot') }}" class="btn btn-secondary">
+                    🛡️ Stopbot Config
+                </a>
+                <a href="{{ route('panel.ips') }}" class="btn btn-secondary">
+                    📋 IP List
+                </a>
                 <button class="btn btn-primary" onclick="refreshData()">
                     🔄 Refresh
                 </button>
@@ -822,6 +828,21 @@
                     <p>Avg per Link</p>
                 </div>
                 <div class="stat-icon">📈</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-content">
+                <div class="stat-info">
+                    <h3 id="stopbot-status">
+                        @if(\App\Models\PanelSetting::get('stopbot_enabled', false))
+                            <span style="color: var(--color-success);">ON</span>
+                        @else
+                            <span style="color: var(--color-secondary);">OFF</span>
+                        @endif
+                    </h3>
+                    <p>Stopbot Status</p>
+                </div>
+                <div class="stat-icon">🛡️</div>
             </div>
         </div>
     </div>
@@ -987,7 +1008,35 @@
                 </ul>
             </div>
 
-            <!-- Top Links -->
+            <!-- Stopbot Quick Settings -->
+            <div class="paper content-card" style="margin-top: 24px;">
+                <div class="card-header">
+                    <h2 class="card-title">🛡️ Bot Protection</h2>
+                </div>
+                <div style="padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-size: 13px; color: var(--color-text-secondary);">Stopbot Status:</span>
+                        <span class="badge {{ \App\Models\PanelSetting::get('stopbot_enabled', false) ? 'bg-success' : 'bg-secondary' }}">
+                            {{ \App\Models\PanelSetting::get('stopbot_enabled', false) ? 'Active' : 'Inactive' }}
+                        </span>
+                    </div>
+                    @if(\App\Models\PanelSetting::get('stopbot_api_key', ''))
+                        <div style="margin-bottom: 12px; font-size: 12px; color: var(--color-text-muted);">
+                            API Key: {{ substr(\App\Models\PanelSetting::get('stopbot_api_key', ''), 0, 8) }}***
+                        </div>
+                    @endif
+                    <div style="display: flex; gap: 8px;">
+                        <a href="{{ route('panel.stopbot') }}" class="btn btn-outline btn-sm" style="flex: 1; font-size: 11px;">
+                            ⚙️ Configure
+                        </a>
+                        <button onclick="toggleStopbot()" class="btn btn-primary btn-sm" style="flex: 1; font-size: 11px;" id="toggleStopbotBtn">
+                            {{ \App\Models\PanelSetting::get('stopbot_enabled', false) ? '⏹️ Disable' : '▶️ Enable' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Popular Links -->
             <div class="paper content-card" style="margin-top: 24px;">
                 <div class="card-header">
                     <h2 class="card-title">Popular Links</h2>
@@ -1100,721 +1149,55 @@ function setupEventListeners() {
                 } else {
                     showNotification('Error: ' + (json?.message || 'Failed to reset'), 'error');
                 }
-            } catch (err) {
-                console.error('Failed to reset all visitors:', err);
-                showNotification('Failed to reset all visitors', 'error');
+            } catch (e) {
+                showNotification('Error: ' + e.message, 'error');
             }
         });
     }
 }
 
-// Reset visitor count for a specific shortlink
-async function resetVisitors(slug) {
-    if (!confirm(`Are you sure you want to reset visitor count for "${slug}"?`)) return;
+// Toggle Stopbot status function
+async function toggleStopbot() {
+    const btn = document.getElementById('toggleStopbotBtn');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Processing...';
+
     try {
-        const resp = await fetch(`/api/reset-visitors/${slug}`, {
+        // Get current status first
+        const currentStatus = {{ \App\Models\PanelSetting::get('stopbot_enabled', false) ? 'true' : 'false' }};
+        const newStatus = !currentStatus;
+
+        const response = await fetch('/panel/api/stopbot/config', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        });
-        const json = await resp.json();
-        if (json?.ok) {
-            showNotification(json.message || `Visitor count reset for ${slug}`, 'success');
-            loadLinks();
-            loadAnalytics();
-        } else {
-            showNotification('Error: ' + (json?.message || 'Failed to reset'), 'error');
-        }
-    } catch (err) {
-        console.error('Failed to reset visitors:', err);
-        showNotification('Failed to reset visitors', 'error');
-    }
-}
-
-// Delete a shortlink
-async function deleteShortlink(slug) {
-    if (!confirm(`Are you sure you want to DELETE the shortlink "${slug}"? This will remove the link and all its analytics.`)) return;
-    try {
-        const resp = await fetch(`/api/delete/${slug}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        });
-        const json = await resp.json();
-        if (json?.ok) {
-            showNotification(json.message || `Shortlink ${slug} deleted`, 'success');
-            loadLinks();
-            loadAnalytics();
-        } else {
-            showNotification('Error: ' + (json?.message || 'Failed to delete'), 'error');
-        }
-    } catch (err) {
-        console.error('Failed to delete shortlink:', err);
-        showNotification('Failed to delete shortlink', 'error');
-    }
-}
-
-async function loadAnalytics() {
-    try {
-        const response = await fetch(`/api/analytics?period=${currentPeriod}`);
-        const data = await response.json();
-        
-        if (data.ok) {
-            updateOverviewStats(data.data.overview);
-            updateChart(data.data.timeline, data.data.period);
-            updateComparison(data.data.comparison);
-            updateSidebarStats(data.data);
-        }
-    } catch (error) {
-        console.error('Failed to load analytics:', error);
-    }
-}
-
-function updateOverviewStats(overview) {
-    document.getElementById('total-links').textContent = overview.total_links.toLocaleString();
-    document.getElementById('total-clicks').textContent = overview.total_clicks.toLocaleString();
-    document.getElementById('today-clicks').textContent = overview.today_clicks.toLocaleString();
-    document.getElementById('avg-clicks').textContent = overview.avg_clicks_per_link;
-}
-
-function updateChart(timeline, period) {
-    const ctx = document.getElementById('analytics-chart').getContext('2d');
-    
-    if (analyticsChart) {
-        analyticsChart.destroy();
-    }
-    
-    analyticsChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: timeline.map(item => item.date),
-            datasets: [{
-                label: 'Clicks',
-                data: timeline.map(item => item.clicks),
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#2563eb',
-                pointBorderColor: '#ffffff',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                x: {
-                    grid: {
-                        color: '#f1f5f9',
-                        borderColor: '#e5e7eb'
-                    },
-                    ticks: {
-                        color: '#64748b',
-                        font: {
-                            size: 11
-                        }
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: '#f1f5f9',
-                        borderColor: '#e5e7eb'
-                    },
-                    ticks: {
-                        color: '#64748b',
-                        font: {
-                            size: 11
-                        }
-                    }
-                }
-            },
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            }
-        }
-    });
-}
-
-function updateComparison(comparison) {
-    document.getElementById('current-period').textContent = comparison.current.toLocaleString();
-    document.getElementById('previous-period').textContent = comparison.previous.toLocaleString();
-    document.getElementById('comparison-label').textContent = comparison.label;
-    
-    const changeElement = document.getElementById('comparison-change');
-    const changeValue = comparison.change;
-    
-    changeElement.className = 'comparison-change ';
-    
-    if (changeValue > 0) {
-        changeElement.className += 'change-positive';
-        changeElement.textContent = `+${changeValue.toFixed(1)}%`;
-    } else if (changeValue < 0) {
-        changeElement.className += 'change-negative';
-        changeElement.textContent = `${changeValue.toFixed(1)}%`;
-    } else {
-        changeElement.className += 'change-neutral';
-        changeElement.textContent = '0%';
-    }
-}
-
-function updateSidebarStats(data) {
-    // Countries
-    const countriesList = document.getElementById('countries-list');
-    if (data.top_countries && data.top_countries.length > 0) {
-        countriesList.innerHTML = data.top_countries.map(country => `
-            <li class="sidebar-item">
-                <span class="sidebar-label">${country.country || 'Unknown'}</span>
-                <span class="sidebar-value">${country.count.toLocaleString()}</span>
-            </li>
-        `).join('');
-    } else {
-        countriesList.innerHTML = '<li class="sidebar-item"><span class="sidebar-label">No data available</span></li>';
-    }
-    
-    // Devices
-    const devicesList = document.getElementById('devices-list');
-    if (data.device_stats && data.device_stats.length > 0) {
-        devicesList.innerHTML = data.device_stats.map(device => `
-            <li class="sidebar-item">
-                <span class="sidebar-label">${device.device || 'Unknown'}</span>
-                <span class="sidebar-value">${device.count.toLocaleString()}</span>
-            </li>
-        `).join('');
-    } else {
-        devicesList.innerHTML = '<li class="sidebar-item"><span class="sidebar-label">No data available</span></li>';
-    }
-    
-    // Browsers
-    const browsersList = document.getElementById('browsers-list');
-    if (data.browser_stats && data.browser_stats.length > 0) {
-        browsersList.innerHTML = data.browser_stats.map(browser => `
-            <li class="sidebar-item">
-                <span class="sidebar-label">${browser.browser || 'Unknown'}</span>
-                <span class="sidebar-value">${browser.count.toLocaleString()}</span>
-            </li>
-        `).join('');
-    } else {
-        browsersList.innerHTML = '<li class="sidebar-item"><span class="sidebar-label">No data available</span></li>';
-    }
-    
-    // Popular links
-    const popularLinks = document.getElementById('popular-links');
-    if (data.top_links && data.top_links.length > 0) {
-        popularLinks.innerHTML = data.top_links.map(link => `
-            <li class="sidebar-item">
-                <div>
-                    <div class="sidebar-label">${link.slug}</div>
-                    <div style="font-size: 11px; color: var(--color-muted); margin-top: 2px;">${link.destination.substring(0, 30)}${link.destination.length > 30 ? '...' : ''}</div>
-                </div>
-                <span class="sidebar-value">${link.clicks.toLocaleString()}</span>
-            </li>
-        `).join('');
-    } else {
-        popularLinks.innerHTML = '<li class="sidebar-item"><span class="sidebar-label">No links yet</span></li>';
-    }
-}
-
-async function loadLinks() {
-    try {
-        const response = await fetch('/api/links');
-        const data = await response.json();
-        
-        if (data.ok && data.data) {
-            displayLinks(data.data);
-        }
-    } catch (error) {
-        console.error('Failed to load links:', error);
-        document.getElementById('links-container').innerHTML = '<div class="loading">Failed to load links</div>';
-    }
-}
-
-function displayLinks(links) {
-    const container = document.getElementById('links-container');
-    
-    if (links.length === 0) {
-        container.innerHTML = '<div class="loading">No shortlinks created yet</div>';
-        return;
-    }
-    
-    const table = `
-        <table class="links-table">
-            <thead>
-                <tr>
-                    <th>Slug</th>
-                    <th>Destination</th>
-                    <th>Clicks</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${links.map(link => {
-                    const rotatorBadge = link.is_rotator ? 
-                        `<span class="rotator-badge">🔄 ${link.destinations?.length || 0} URLs</span>` : '';
-                    const destination = link.is_rotator ? 
-                        `Multiple destinations (${link.rotation_type})` : link.destination;
-                    const rotatorBtn = link.is_rotator ? 
-                        `<button class="btn-manage-rotator" onclick="manageRotator('${link.slug}')" title="Manage rotator">⚙️</button>` : '';
-                    const editBtn = `<button class="btn-edit" onclick="editDestinations('${link.slug}')" title="Edit destinations">✏️</button>`;
-                    
-                    return `
-                    <tr>
-                        <td>
-                            <a href="${link.full_url || ('/' + link.slug)}" class="link-slug" target="_blank" rel="noopener" title="${link.full_url || ('/' + link.slug)}">${link.slug}</a>
-                            ${rotatorBadge}
-                        </td>
-                        <td>
-                            <div class="link-destination" title="${link.destination}">${destination}</div>
-                            ${link.is_rotator ? `<div class="rotator-info">${link.destinations?.length || 0} destinations • ${link.rotation_type} rotation</div>` : ''}
-                        </td>
-                        <td><span class="clicks-badge">${link.clicks}</span></td>
-                        <td><span class="status-${link.active ? 'active' : 'inactive'}">${link.active ? 'Active' : 'Inactive'}</span></td>
-                        <td>${new Date(link.created_at).toLocaleDateString('id-ID')}</td>
-                        <td>
-                            <div class="action-buttons">
-                                ${editBtn}
-                                ${rotatorBtn}
-                                <button class="btn-danger-sm" onclick="resetVisitors('${link.slug}')" title="Reset visitor count">
-                                    🔄
-                                </button>
-                                <button class="btn-delete-sm" onclick="deleteShortlink('${link.slug}')" title="Delete shortlink">
-                                    🗑️
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    `;
-                }).join('')}
-            </tbody>
-        </table>
-    `;
-    
-    container.innerHTML = table;
-}
-
-async function createShortlink() {
-    const form = document.getElementById('create-form');
-    const formData = new FormData(form);
-    
-    // Get submit button
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.innerHTML;
-    
-    // Show loading animation
-    submitBtn.innerHTML = '<div class="loading-create"><div class="loading-spinner"></div>Creating...</div>';
-    submitBtn.disabled = true;
-    
-    try {
-        // Prepare data based on link type
-        const linkType = formData.get('link_type');
-        const isRotator = linkType === 'rotator';
-        
-        const requestData = {
-            slug: formData.get('slug'),
-            is_rotator: isRotator
-        };
-        
-        if (isRotator) {
-            requestData.rotation_type = formData.get('rotation_type');
-            requestData.destinations = [];
-            
-            // Collect destinations
-            const destinationInputs = document.querySelectorAll('.destination-item');
-            destinationInputs.forEach((item, index) => {
-                const url = formData.get(`destinations[${index}][url]`);
-                const name = formData.get(`destinations[${index}][name]`);
-                const weight = formData.get(`destinations[${index}][weight]`);
-                
-                if (url) {
-                    requestData.destinations.push({
-                        url: url,
-                        name: name || '',
-                        weight: parseInt(weight) || 1,
-                        active: true
-                    });
-                }
-            });
-            
-            if (requestData.destinations.length === 0) {
-                throw new Error('At least one destination is required for rotator');
-            }
-        } else {
-            requestData.destination = formData.get('destination');
-        }
-        
-        const response = await fetch('/api/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify(requestData)
+            body: JSON.stringify({
+                enabled: newStatus,
+                api_key: '{{ \App\Models\PanelSetting::get('stopbot_api_key', '') }}',
+                redirect_url: '{{ \App\Models\PanelSetting::get('stopbot_redirect_url', 'https://www.google.com') }}',
+                log_enabled: {{ \App\Models\PanelSetting::get('stopbot_log_enabled', true) ? 'true' : 'false' }},
+                timeout: {{ \App\Models\PanelSetting::get('stopbot_timeout', 5) }}
+            })
         });
+
+        const result = await response.json();
         
-        const data = await response.json();
-        
-        if (data.ok) {
-            // Show success animation
-            submitBtn.innerHTML = '<div class="success-animation"><span class="success-checkmark">✅</span>Created Successfully!</div>';
-            
-            form.reset();
-            toggleLinkType(); // Reset to default state
-            loadLinks();
-            loadAnalytics();
-            
-            // Reset button after success without alert
-            setTimeout(() => {
-                submitBtn.innerHTML = originalBtnText;
-                submitBtn.disabled = false;
-            }, 2000);
+        if (result.ok) {
+            showNotification(`Stopbot ${newStatus ? 'enabled' : 'disabled'} successfully!`, 'success');
+            // Reload page to update status displays
+            setTimeout(() => location.reload(), 1000);
         } else {
-            // Reset button on error
-            submitBtn.innerHTML = originalBtnText;
-            submitBtn.disabled = false;
-            
-            // Show error notification instead of alert
-            showNotification(`Error: ${data.message || data.error || 'Failed to create shortlink'}`, 'error');
+            showNotification('Error: ' + (result.message || 'Failed to toggle Stopbot'), 'error');
+            btn.textContent = originalText;
+            btn.disabled = false;
         }
     } catch (error) {
-        console.error('Failed to create shortlink:', error);
-        // Reset button on error
-        submitBtn.innerHTML = originalBtnText;
-        submitBtn.disabled = false;
-        showNotification('Failed to create shortlink. Please try again.', 'error');
-    }
-}
-
-function refreshData() {
-    loadAnalytics();
-    loadLinks();
-}
-
-// Link type toggle functionality
-function toggleLinkType() {
-    const linkType = document.querySelector('input[name="link_type"]:checked').value;
-    const singleSection = document.getElementById('single-destination');
-    const rotatorSection = document.getElementById('rotator-destinations');
-    
-    if (linkType === 'rotator') {
-        singleSection.style.display = 'none';
-        rotatorSection.style.display = 'block';
-        document.getElementById('destination').removeAttribute('required');
-        // Ensure at least one destination exists
-        if (document.querySelectorAll('.destination-item').length === 0) {
-            addDestination();
-        }
-    } else {
-        singleSection.style.display = 'block';
-        rotatorSection.style.display = 'none';
-        document.getElementById('destination').setAttribute('required', '');
-    }
-}
-
-// Add destination to rotator
-function addDestination() {
-    const container = document.getElementById('destinations-container');
-    const index = container.children.length;
-    
-    const destinationItem = document.createElement('div');
-    destinationItem.className = 'destination-item';
-    destinationItem.innerHTML = `
-        <div class="destination-inputs">
-            <input type="url" name="destinations[${index}][url]" class="form-input destination-url" placeholder="https://example.com/page-${index + 1}" required>
-            <input type="text" name="destinations[${index}][name]" class="form-input destination-name" placeholder="Name (optional)">
-            <input type="number" name="destinations[${index}][weight]" class="form-input destination-weight" placeholder="Weight" value="1" min="1" max="100">
-            <button type="button" class="btn-remove-destination" onclick="removeDestination(this)" title="Remove destination">🗑️</button>
-        </div>
-    `;
-    
-    container.appendChild(destinationItem);
-}
-
-// Remove destination from rotator
-function removeDestination(button) {
-    const container = document.getElementById('destinations-container');
-    if (container.children.length > 1) {
-        button.closest('.destination-item').remove();
-        // Reindex remaining destinations
-        Array.from(container.children).forEach((item, index) => {
-            const inputs = item.querySelectorAll('input');
-            inputs[0].name = `destinations[${index}][url]`;
-            inputs[1].name = `destinations[${index}][name]`;
-            inputs[2].name = `destinations[${index}][weight]`;
-        });
-    } else {
-        showNotification('At least one destination is required', 'error');
-    }
-}
-
-// Manage rotator modal/popup
-async function manageRotator(slug) {
-    try {
-        const response = await fetch(`/api/rotator/${slug}`);
-        const data = await response.json();
-        
-        if (data.ok) {
-            showEditDestinationsModal(data.data);
-        } else {
-            showNotification('Failed to load rotator data', 'error');
-        }
-    } catch (error) {
-        console.error('Failed to load rotator:', error);
-        showNotification('Failed to load rotator data', 'error');
-    }
-}
-
-// Show rotator management modal
-function showEditDestinationsModal(rotatorData) {
-    // Create modal HTML
-    const modalHTML = `
-        <div id="rotator-modal" class="modal-overlay" onclick="closeRotatorModal(event)">
-            <div class="modal-content" onclick="event.stopPropagation()">
-                <div class="modal-header">
-                    <h3>Edit Destinations: ${rotatorData.slug}</h3>
-                    <button class="modal-close" onclick="closeRotatorModal()">&times;</button>
-                </div>
-                <form id="destinations-form">
-                    <div class="form-group">
-                        <label class="form-label">Type</label>
-                        <div class="link-type-toggle">
-                            <label class="toggle-option"><input type="radio" name="is_rotator" value="0" ${!rotatorData.is_rotator ? 'checked' : ''}><span>Single</span></label>
-                            <label class="toggle-option"><input type="radio" name="is_rotator" value="1" ${rotatorData.is_rotator ? 'checked' : ''}><span>Rotator</span></label>
-                        </div>
-                    </div>
-
-                    <div id="single-destination-group" class="form-group" style="display: ${rotatorData.is_rotator ? 'none' : 'block'};">
-                        <label class="form-label">Destination URL</label>
-                        <input type="url" name="destination" class="form-input" value="${rotatorData.destination || ''}" placeholder="https://example.com" ${rotatorData.is_rotator ? '' : 'required'}>
-                    </div>
-
-                    <div id="rotator-destinations-group" class="form-group" style="display: ${rotatorData.is_rotator ? 'block' : 'none'};">
-                        <label class="form-label">Rotation Type</label>
-                        <select name="rotation_type" class="form-input">
-                            <option value="random" ${rotatorData.rotation_type === 'random' ? 'selected' : ''}>Random</option>
-                            <option value="sequential" ${rotatorData.rotation_type === 'sequential' ? 'selected' : ''}>Sequential</option>
-                            <option value="weighted" ${rotatorData.rotation_type === 'weighted' ? 'selected' : ''}>Weighted</option>
-                        </select>
-                        <label class="form-label" style="margin-top:10px">Destinations</label>
-                        <div id="modal-destinations-container">
-                            ${ (rotatorData.destinations || []).map((dest, index) => `
-                                <div class="destination-item">
-                                    <div class="destination-inputs">
-                                        <input type="url" name="destinations[${index}][url]" class="form-input destination-url" value="${dest.url}" required>
-                                        <input type="text" name="destinations[${index}][name]" class="form-input destination-name" value="${dest.name || ''}" placeholder="Name (optional)">
-                                        <input type="number" name="destinations[${index}][weight]" class="form-input destination-weight" value="${dest.weight || 1}" min="1" max="100">
-                                        <button type="button" class="btn-remove-destination" onclick="removeModalDestination(this)">🗑️</button>
-                                    </div>
-                                </div>
-                            `).join('') }
-                        </div>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="addModalDestination()">+ Add Destination</button>
-                    </div>
-
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closeRotatorModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `;
-    
-    // Add modal to page
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
-    // Toggle visibility between single and rotator UI
-    const formEl = document.getElementById('destinations-form');
-    formEl.querySelectorAll('input[name="is_rotator"]').forEach(r => r.addEventListener('change', function(){
-        const isRot = this.value === '1';
-        document.getElementById('single-destination-group').style.display = isRot ? 'none' : 'block';
-        document.getElementById('rotator-destinations-group').style.display = isRot ? 'block' : 'none';
-    }));
-    
-    // Setup form submission
-    document.getElementById('destinations-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        submitDestinations(rotatorData.slug);
-    });
-}
-
-// Close rotator modal
-function closeRotatorModal(event) {
-    if (!event || event.target.classList.contains('modal-overlay') || event.target.classList.contains('modal-close')) {
-        const modal = document.getElementById('rotator-modal');
-        if (modal) {
-            modal.remove();
-        }
-    }
-}
-
-// Add destination in modal
-function addModalDestination() {
-    const container = document.getElementById('modal-destinations-container');
-    const index = container.children.length;
-    
-    const destinationItem = document.createElement('div');
-    destinationItem.className = 'destination-item';
-    destinationItem.innerHTML = `
-        <div class="destination-inputs">
-            <input type="url" name="destinations[${index}][url]" class="form-input destination-url" placeholder="https://example.com/page-${index + 1}" required>
-            <input type="text" name="destinations[${index}][name]" class="form-input destination-name" placeholder="Name (optional)">
-            <input type="number" name="destinations[${index}][weight]" class="form-input destination-weight" value="1" min="1" max="100">
-            <button type="button" class="btn-remove-destination" onclick="removeModalDestination(this)">🗑️</button>
-        </div>
-    `;
-    
-    container.appendChild(destinationItem);
-}
-
-// Remove destination in modal
-function removeModalDestination(button) {
-    const container = document.getElementById('modal-destinations-container');
-    if (container.children.length > 1) {
-        button.closest('.destination-item').remove();
-        // Reindex
-        Array.from(container.children).forEach((item, index) => {
-            const inputs = item.querySelectorAll('input');
-            inputs[0].name = `destinations[${index}][url]`;
-            inputs[1].name = `destinations[${index}][name]`;
-            inputs[2].name = `destinations[${index}][weight]`;
-        });
-    } else {
-        showNotification('At least one destination is required', 'error');
-    }
-}
-
-// Update rotator
-async function updateRotator(slug) {
-    const form = document.getElementById('rotator-form');
-    const formData = new FormData(form);
-    
-    try {
-        const requestData = {
-            is_rotator: true,
-            rotation_type: formData.get('rotation_type'),
-            destinations: []
-        };
-        
-        // Collect destinations
-        const destinationInputs = document.querySelectorAll('#modal-destinations-container .destination-item');
-        destinationInputs.forEach((item, index) => {
-            const url = formData.get(`destinations[${index}][url]`);
-            const name = formData.get(`destinations[${index}][name]`);
-            const weight = formData.get(`destinations[${index}][weight]`);
-            
-            if (url) {
-                requestData.destinations.push({
-                    url: url,
-                    name: name || '',
-                    weight: parseInt(weight) || 1,
-                    active: true
-                });
-            }
-        });
-        
-        const response = await fetch(`/api/rotator/${slug}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify(requestData)
-        });
-        
-        const data = await response.json();
-        
-        if (data.ok) {
-            showNotification('Rotator updated successfully', 'success');
-            closeRotatorModal();
-            loadLinks();
-        } else {
-            showNotification(`Error: ${data.message}`, 'error');
-        }
-    } catch (error) {
-        console.error('Failed to update rotator:', error);
-        showNotification('Failed to update rotator', 'error');
-    }
-}
-
-// Edit destinations (open unified modal)
-async function editDestinations(slug) {
-    try {
-        const response = await fetch(`/api/rotator/${slug}`);
-        const data = await response.json();
-        if (data.ok) {
-            showEditDestinationsModal(data.data);
-        } else {
-            showNotification('Failed to load link data', 'error');
-        }
-    } catch (err) {
-        console.error('Failed to load link data:', err);
-        showNotification('Failed to load link data', 'error');
-    }
-}
-
-async function submitDestinations(slug) {
-    const form = document.getElementById('destinations-form');
-    const formData = new FormData(form);
-
-    try {
-        const isRotator = formData.get('is_rotator') === '1';
-        const requestData = { is_rotator: isRotator };
-
-        if (isRotator) {
-            requestData.rotation_type = formData.get('rotation_type');
-            requestData.destinations = [];
-            const destinationItems = document.querySelectorAll('#modal-destinations-container .destination-item');
-            destinationItems.forEach((item, index) => {
-                const url = formData.get(`destinations[${index}][url]`);
-                const name = formData.get(`destinations[${index}][name]`);
-                const weight = formData.get(`destinations[${index}][weight]`);
-                if (url) requestData.destinations.push({ url: url, name: name || '', weight: parseInt(weight) || 1, active: true });
-            });
-        } else {
-            requestData.destination = formData.get('destination');
-        }
-
-        const response = await fetch(`/panel/shortlinks/${slug}/destinations`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify(requestData)
-        });
-
-        const data = await response.json();
-        if (data.ok) {
-            showNotification('Destinations updated', 'success');
-            closeRotatorModal();
-            loadLinks();
-        } else {
-            showNotification('Error: ' + (data.message || 'Failed to update'), 'error');
-        }
-    } catch (err) {
-        console.error('Failed to submit destinations:', err);
-        showNotification('Failed to update destinations', 'error');
+        showNotification('Error: ' + error.message, 'error');
+        btn.textContent = originalText;
+        btn.disabled = false;
     }
 }
 </script>

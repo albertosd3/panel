@@ -65,6 +65,9 @@ Route::middleware('panel.auth')->group(function () {
         Route::post('/stopbot/config', [ShortlinkController::class, 'saveStopbotConfig'])->name('panel.api.stopbot.config');
         Route::post('/stopbot/test', [ShortlinkController::class, 'testStopbotApi'])->name('panel.api.stopbot.test');
         Route::get('/stopbot/stats', [ShortlinkController::class, 'getStopbotStats'])->name('panel.api.stopbot.stats');
+
+        // Real-time IP statistics API
+        Route::get('/ip-stats', [ShortlinkController::class, 'getIpStats'])->name('panel.api.ip.stats');
     });
 });
 

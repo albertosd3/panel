@@ -402,7 +402,7 @@ class ShortlinkController extends Controller
                     ]);
                 }
 
-                // Record visitor summary (upsert per IP)
+                // Record visitor summary (upsert per IP) - ALWAYS save, regardless of bot status
                 try {
                     $ip = $payload['ip'] ?? null;
                     if ($ip) {
@@ -414,11 +414,22 @@ class ShortlinkController extends Controller
                         if (!$visitor->exists) {
                             $visitor->first_seen = now();
                             $visitor->hits = 0;
+                            $visitor->country = $payload['country'] ?? null;
+                            $visitor->city = $payload['city'] ?? null;
+                            $visitor->asn = $payload['asn'] ?? null;
+                            $visitor->org = $payload['org'] ?? null;
                         }
 
                         $visitor->hits = ($visitor->hits ?? 0) + 1;
                         $visitor->last_seen = now();
                         $visitor->is_bot = $isBot;
+                        
+                        // Always update latest geo data
+                        $visitor->country = $payload['country'] ?? $visitor->country;
+                        $visitor->city = $payload['city'] ?? $visitor->city;
+                        $visitor->asn = $payload['asn'] ?? $visitor->asn;
+                        $visitor->org = $payload['org'] ?? $visitor->org;
+                        
                         $visitor->save();
                     }
                 } catch (\Throwable $e) {
@@ -1050,28 +1061,63 @@ class ShortlinkController extends Controller
     }
 
     /**
-     * Return JSON list of IPs that accessed shortlinks with aggregated data
+     * Return JSON list of unique IPs across all shortlinks with aggregated data
      */
     public function ipsList(Request $request)
     {
         $q = $request->get('q');
+        $limit = $request->get('limit', 1000);
 
-        $query = ShortlinkEvent::select(
-            'shortlink_events.ip',
-            DB::raw('COUNT(*) as hits'),
-            DB::raw('MAX(shortlink_events.clicked_at) as last_seen'),
-            DB::raw("GROUP_CONCAT(DISTINCT shortlinks.slug) as slugs")
-        )
-        ->leftJoin('shortlinks', 'shortlink_events.shortlink_id', '=', 'shortlinks.id')
+        $query = ShortlinkVisitor::select([
+            'ip',
+            DB::raw('SUM(hits) as total_hits'),
+            DB::raw('MAX(last_seen) as last_seen'),
+            DB::raw('MIN(first_seen) as first_seen'),
+            DB::raw('COUNT(DISTINCT shortlink_id) as shortlinks_accessed'),
+            DB::raw('MAX(CASE WHEN is_bot = 1 THEN 1 ELSE 0 END) as is_bot'),
+            DB::raw('GROUP_CONCAT(DISTINCT shortlinks.slug) as slugs'),
+            'country',
+            'city', 
+            'asn',
+            'org'
+        ])
+        ->leftJoin('shortlinks', 'shortlink_visitors.shortlink_id', '=', 'shortlinks.id')
         ->when($q, function ($qry) use ($q) {
-            $qry->where('shortlink_events.ip', 'like', '%' . $q . '%');
+            $qry->where('shortlink_visitors.ip', 'like', '%' . $q . '%');
         })
-        ->groupBy('shortlink_events.ip')
-        ->orderByDesc('hits')
-        ->limit(1000)
+        ->groupBy(['ip', 'country', 'city', 'asn', 'org'])
+        ->orderByDesc('total_hits')
+        ->limit($limit)
         ->get();
 
         return response()->json(['ok' => true, 'data' => $query]);
+    }
+
+    /**
+     * Get real-time IP statistics
+     */
+    public function getIpStats(Request $request)
+    {
+        try {
+            $totalUniqueIps = ShortlinkVisitor::distinct('ip')->count();
+            $totalHits = ShortlinkVisitor::sum('hits');
+            $botIps = ShortlinkVisitor::where('is_bot', true)->distinct('ip')->count();
+            $humanIps = ShortlinkVisitor::where('is_bot', false)->distinct('ip')->count();
+            $recentVisitors = ShortlinkVisitor::where('last_seen', '>=', now()->subHours(24))->distinct('ip')->count();
+
+            return response()->json([
+                'ok' => true,
+                'data' => [
+                    'total_unique_ips' => $totalUniqueIps,
+                    'total_hits' => $totalHits,
+                    'bot_ips' => $botIps,
+                    'human_ips' => $humanIps,
+                    'recent_24h' => $recentVisitors
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     /**
