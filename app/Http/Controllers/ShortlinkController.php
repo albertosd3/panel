@@ -256,10 +256,17 @@ class ShortlinkController extends Controller
     public function store(Request $request)
     {
         try {
+            // Properly handle JSON input by replacing request data
+            if ($request->isJson()) {
+                $jsonData = $request->json()->all();
+                $request->replace($jsonData);
+            }
+
             // Debug incoming request
             \Log::info('Shortlink creation request', [
                 'method' => $request->method(),
                 'content_type' => $request->header('Content-Type'),
+                'is_json' => $request->isJson(),
                 'is_rotator' => $request->boolean('is_rotator'),
                 'has_destination' => $request->has('destination'),
                 'has_destinations' => $request->has('destinations'),
