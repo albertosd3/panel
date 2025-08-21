@@ -1088,29 +1088,50 @@ class ShortlinkController extends Controller
     public function saveStopbotConfig(Request $request)
     {
         try {
+            \Log::info('Stopbot save config request raw', ['json' => $request->getContent(), 'all' => $request->all(), 'session_authenticated' => session('panel_authenticated')]);
+
             $data = $request->validate([
-                'enabled' => 'boolean',
+                'enabled' => 'required|boolean',
                 'api_key' => 'nullable|string|max:255',
                 'redirect_url' => 'nullable|string|max:255',
-                'log_enabled' => 'boolean',
+                'log_enabled' => 'required|boolean',
                 'timeout' => 'nullable|integer|min:1|max:30'
             ]);
 
-            // Save to database instead of .env
+            // If enabling but api_key empty -> error
+            if ($data['enabled'] && empty($data['api_key'])) {
+                return response()->json(['ok' => false, 'message' => 'API key wajib diisi saat mengaktifkan Stopbot'], 422);
+            }
+
+            // Normalize
+            $data['api_key'] = trim($data['api_key'] ?? '');
+            $data['redirect_url'] = trim($data['redirect_url'] ?? '');
+
             PanelSetting::set('stopbot_enabled', $data['enabled'], 'boolean', 'stopbot', 'Enable Stopbot.net integration');
-            PanelSetting::set('stopbot_api_key', $data['api_key'] ?? '', 'string', 'stopbot', 'Stopbot.net API key');
-            PanelSetting::set('stopbot_redirect_url', $data['redirect_url'] ?? '', 'string', 'stopbot', 'URL to redirect blocked requests');
+            PanelSetting::set('stopbot_api_key', $data['api_key'], 'string', 'stopbot', 'Stopbot.net API key');
+            PanelSetting::set('stopbot_redirect_url', $data['redirect_url'], 'string', 'stopbot', 'URL to redirect blocked requests');
             PanelSetting::set('stopbot_log_enabled', $data['log_enabled'], 'boolean', 'stopbot', 'Enable Stopbot logging');
             PanelSetting::set('stopbot_timeout', $data['timeout'] ?? 5, 'integer', 'stopbot', 'API timeout in seconds');
 
-            return response()->json(['ok' => true, 'message' => 'Configuration saved successfully']);
+            // Read back
+            $saved = [
+                'enabled' => PanelSetting::get('stopbot_enabled', false),
+                'api_key' => PanelSetting::get('stopbot_api_key', ''),
+                'redirect_url' => PanelSetting::get('stopbot_redirect_url', ''),
+                'log_enabled' => PanelSetting::get('stopbot_log_enabled', true),
+                'timeout' => PanelSetting::get('stopbot_timeout', 5),
+            ];
+            \Log::info('Stopbot config saved', $saved);
+
+            return response()->json(['ok' => true, 'message' => 'Configuration saved', 'data' => $saved]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'ok' => false, 
-                'message' => 'Validation error: ' . collect($e->errors())->flatten()->first()
+                'ok' => false,
+                'message' => collect($e->errors())->flatten()->first()
             ], 422);
         } catch (\Exception $e) {
-            return response()->json(['ok' => false, 'message' => 'Failed to save configuration: ' . $e->getMessage()], 500);
+            \Log::error('Stopbot save config exception', ['err' => $e->getMessage()]);
+            return response()->json(['ok' => false, 'message' => 'Gagal menyimpan: ' . $e->getMessage()], 500);
         }
     }
 

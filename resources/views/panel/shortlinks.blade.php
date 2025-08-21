@@ -506,7 +506,202 @@
         min-height: 32px;
     }
 
-    /* Rotator Badge */
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--color-text-primary);
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        background: var(--color-surface);
+        color: var(--color-text-primary);
+        font-family: var(--font-primary);
+        font-size: 14px;
+        transition: all 0.2s ease;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-input::placeholder {
+        color: var(--color-text-muted);
+    }
+
+    /* Link Type Toggle */
+    .link-type-toggle {
+        display: flex;
+        gap: 12px;
+        padding: 8px;
+        background: var(--color-background);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+    }
+
+    .toggle-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+        color: var(--color-text-primary);
+    }
+
+    .toggle-option:hover {
+        background: rgba(59, 130, 246, 0.1);
+    }
+
+    .toggle-option input[type="radio"] {
+        margin: 0;
+    }
+
+    .toggle-option input[type="radio"]:checked + span {
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+
+    /* Destination Management */
+    .destination-section {
+        transition: all 0.3s ease;
+    }
+
+    .destination-item {
+        margin-bottom: 12px;
+        padding: 16px;
+        background: var(--color-background);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+    }
+
+    .destination-inputs {
+        display: grid;
+        grid-template-columns: 2fr 1fr 80px auto;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .destination-url {
+        grid-column: 1;
+    }
+
+    .destination-name {
+        grid-column: 2;
+    }
+
+    .destination-weight {
+        grid-column: 3;
+    }
+
+    .btn-remove-destination {
+        grid-column: 4;
+        background: var(--color-danger);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-remove-destination:hover {
+        background: #dc2626;
+        transform: scale(1.05);
+    }
+
+    /* Link Display */
+    .link-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        margin-bottom: 12px;
+        background: var(--color-surface);
+        transition: all 0.2s ease;
+    }
+
+    .link-item:hover {
+        background: var(--color-background);
+        transform: translateX(4px);
+    }
+
+    .link-info {
+        flex: 1;
+    }
+
+    .link-url {
+        font-family: var(--font-mono);
+        font-weight: 600;
+        color: var(--color-primary);
+        font-size: 16px;
+        margin-bottom: 4px;
+    }
+
+    .link-destination {
+        color: var(--color-text-muted);
+        font-size: 14px;
+        margin-bottom: 4px;
+        word-break: break-all;
+    }
+
+    .link-meta {
+        color: var(--color-text-muted);
+        font-size: 12px;
+    }
+
+    .link-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 2px 6px;
+        background: var(--color-accent);
+        color: white;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        margin-left: 8px;
+    }
+
+    /* Loading State */
+    .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 40px;
+        color: var(--color-text-muted);
+        font-size: 14px;
+    }
+
+    /* Button Variants */
+    .btn-danger {
+        background: var(--color-danger);
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
     .rotator-badge {
         display: inline-flex;
         align-items: center;
@@ -1081,6 +1276,133 @@ function showNotification(message, type = 'success') {
     }, 4000);
 }
 
+// Load shortlinks data
+async function loadLinks() {
+    try {
+        const response = await fetch('/api/links');
+        if (!response.ok) throw new Error('Failed to load links');
+        
+        const result = await response.json();
+        if (result.ok && result.data) {
+            displayLinks(result.data);
+        }
+    } catch (error) {
+        console.error('Load links error:', error);
+        showNotification('Failed to load shortlinks', 'error');
+    }
+}
+
+// Load analytics data
+async function loadAnalytics() {
+    try {
+        const response = await fetch(`/api/analytics?period=${currentPeriod || 'week'}`);
+        if (!response.ok) throw new Error('Failed to load analytics');
+        
+        const result = await response.json();
+        if (result.ok && result.data) {
+            displayAnalytics(result.data);
+        }
+    } catch (error) {
+        console.error('Load analytics error:', error);
+        showNotification('Failed to load analytics', 'error');
+    }
+}
+
+// Display links in table
+function displayLinks(links) {
+    const container = document.getElementById('links-container');
+    if (!container) return;
+    
+    if (!links || links.length === 0) {
+        container.innerHTML = '<div class="text-muted text-center p-4">No shortlinks created yet</div>';
+        return;
+    }
+    
+    const html = links.map(link => `
+        <div class="link-item">
+            <div class="link-info">
+                <div class="link-url">
+                    <strong>/${link.slug}</strong>
+                    ${link.is_rotator ? '<span class="badge">🔄 Rotator</span>' : ''}
+                </div>
+                <div class="link-destination">${link.destination}</div>
+                <div class="link-meta">
+                    ${link.clicks} clicks • Created ${new Date(link.created_at).toLocaleDateString()}
+                </div>
+            </div>
+            <div class="link-actions">
+                <button onclick="copyLink('${link.slug}')" class="btn btn-sm">📋 Copy</button>
+                <button onclick="deleteLink('${link.slug}')" class="btn btn-sm btn-danger">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = html;
+}
+
+// Display analytics
+function displayAnalytics(data) {
+    // Update stats cards
+    const elements = {
+        'total-links': data.total_links || 0,
+        'total-clicks': data.total_clicks || 0,
+        'today-clicks': data.today_clicks || 0,
+        'avg-clicks': data.avg_clicks || 0
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    });
+    
+    // Update charts if present
+    if (data.chart_data) {
+        updateCharts(data.chart_data);
+    }
+}
+
+// Copy link to clipboard
+async function copyLink(slug) {
+    const fullUrl = `${window.location.origin}/${slug}`;
+    try {
+        await navigator.clipboard.writeText(fullUrl);
+        showNotification('Link copied to clipboard!', 'success');
+    } catch (error) {
+        showNotification('Failed to copy link', 'error');
+    }
+}
+
+// Delete link
+async function deleteLink(slug) {
+    if (!confirm(`Are you sure you want to delete /${slug}?`)) return;
+    
+    try {
+        const response = await fetch(`/api/delete/${slug}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to delete');
+        
+        const result = await response.json();
+        if (result.ok) {
+            showNotification('Shortlink deleted successfully', 'success');
+            loadLinks();
+            loadAnalytics();
+        } else {
+            throw new Error(result.message || 'Delete failed');
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        showNotification('Failed to delete shortlink', 'error');
+    }
+}
+
+// Global variables
+let currentPeriod = 'week';
+
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
     initializeTime();
@@ -1153,6 +1475,180 @@ function setupEventListeners() {
                 showNotification('Error: ' + e.message, 'error');
             }
         });
+    }
+    }
+}
+
+// Refresh all data
+function refreshData() {
+    showNotification('🔄 Refreshing data...', 'info');
+    loadLinks();
+    loadAnalytics();
+}
+
+// Update charts (placeholder function)
+function updateCharts(chartData) {
+    // This can be implemented later with chart libraries like Chart.js
+    console.log('Chart data received:', chartData);
+}
+
+// Form helper functions
+function toggleLinkType() {
+    const linkType = document.querySelector('input[name="link_type"]:checked').value;
+    const singleSection = document.getElementById('single-destination');
+    const rotatorSection = document.getElementById('rotator-destinations');
+    
+    if (linkType === 'single') {
+        singleSection.style.display = 'block';
+        rotatorSection.style.display = 'none';
+        // Clear rotator required
+        document.querySelectorAll('#rotator-destinations input[required]').forEach(input => {
+            input.removeAttribute('required');
+        });
+        // Add single required
+        document.getElementById('destination').setAttribute('required', 'required');
+    } else {
+        singleSection.style.display = 'none';
+        rotatorSection.style.display = 'block';
+        // Clear single required
+        document.getElementById('destination').removeAttribute('required');
+        // Add rotator required
+        document.querySelectorAll('#rotator-destinations .destination-url').forEach(input => {
+            input.setAttribute('required', 'required');
+        });
+    }
+}
+
+function addDestination() {
+    const container = document.getElementById('destinations-container');
+    const index = container.children.length;
+    
+    const destinationHtml = `
+        <div class="destination-item">
+            <div class="destination-inputs">
+                <input type="url" name="destinations[${index}][url]" class="form-input destination-url" placeholder="https://example.com/page-${index + 1}" required>
+                <input type="text" name="destinations[${index}][name]" class="form-input destination-name" placeholder="Name (optional)">
+                <input type="number" name="destinations[${index}][weight]" class="form-input destination-weight" placeholder="Weight" value="1" min="1" max="100">
+                <button type="button" class="btn-remove-destination" onclick="removeDestination(this)" title="Remove destination">🗑️</button>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', destinationHtml);
+}
+
+function removeDestination(button) {
+    const container = document.getElementById('destinations-container');
+    if (container.children.length > 1) {
+        button.closest('.destination-item').remove();
+        // Reindex remaining destinations
+        Array.from(container.children).forEach((item, index) => {
+            const inputs = item.querySelectorAll('input');
+            inputs.forEach(input => {
+                const name = input.name;
+                if (name.includes('[') && name.includes(']')) {
+                    const newName = name.replace(/\[\d+\]/, `[${index}]`);
+                    input.name = newName;
+                }
+            });
+        });
+    }
+}
+
+// Create shortlink function
+async function createShortlink() {
+    const form = document.getElementById('create-form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    // Disable submit button
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Creating...';
+    
+    try {
+        const formData = new FormData(form);
+        
+        // Convert FormData to JSON
+        const data = {};
+        
+        // Get link type
+        const linkType = document.querySelector('input[name="link_type"]:checked').value;
+        data.is_rotator = linkType === 'rotator';
+        
+        if (data.is_rotator) {
+            // Handle rotator data
+            data.rotation_type = formData.get('rotation_type') || 'random';
+            data.destinations = [];
+            
+            const destinationItems = document.querySelectorAll('#destinations-container .destination-item');
+            destinationItems.forEach((item, index) => {
+                const url = item.querySelector(`input[name="destinations[${index}][url]"]`)?.value;
+                const name = item.querySelector(`input[name="destinations[${index}][name]"]`)?.value || '';
+                const weight = item.querySelector(`input[name="destinations[${index}][weight]"]`)?.value || 1;
+                
+                if (url && url.trim()) {
+                    data.destinations.push({
+                        url: url.trim(),
+                        name: name.trim(),
+                        weight: parseInt(weight) || 1,
+                        active: true
+                    });
+                }
+            });
+            
+            if (data.destinations.length === 0) {
+                throw new Error('At least one destination URL is required for rotator');
+            }
+        } else {
+            // Handle single destination
+            data.destination = formData.get('destination')?.trim();
+            if (!data.destination) {
+                throw new Error('Destination URL is required');
+            }
+        }
+        
+        // Handle optional slug
+        data.slug = formData.get('slug')?.trim() || '';
+
+        const response = await fetch('/api/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.ok) {
+            showNotification('✅ Shortlink berhasil dibuat!', 'success');
+            form.reset();
+            toggleLinkType(); // Reset form display
+            loadLinks();
+            loadAnalytics();
+            
+            // Show created shortlink info
+            if (result.short_url) {
+                setTimeout(() => {
+                    showNotification(`🔗 Created: ${result.short_url}`, 'info');
+                }, 500);
+            }
+        } else {
+            throw new Error(result.message || 'Gagal membuat shortlink');
+        }
+    } catch (error) {
+        console.error('Create Shortlink Error:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
+    } finally {
+        // Re-enable submit button
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
     }
 }
 

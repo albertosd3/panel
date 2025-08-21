@@ -105,12 +105,13 @@ document.getElementById('stopbotForm').addEventListener('submit', async (e) => {
         });
 
         const result = await response.json();
+        console.log('Save stopbot response', result);
         
         if (result.ok) {
-            alert('✅ Configuration saved successfully!');
+            alert('✅ Tersimpan. Status: ' + (result.data.enabled ? 'Enabled' : 'Disabled'));
             location.reload();
         } else {
-            alert('❌ Error: ' + (result.message || 'Failed to save configuration'));
+            alert('❌ Gagal: ' + (result.message || 'Tidak bisa menyimpan'));            
         }
     } catch (error) {
         alert('❌ Error: ' + error.message);
