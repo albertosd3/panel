@@ -104,6 +104,9 @@ class ShortlinkController extends Controller
         $botEvents = ShortlinkEvent::where('is_bot', true)->count();
         $botPercentage = $totalEvents > 0 ? round(($botEvents / $totalEvents) * 100, 1) : 0;
         
+        // Calculate average clicks per link
+        $avgClicksPerLink = $totalLinks > 0 ? round($totalClicks / $totalLinks, 1) : 0;
+        
         return response()->json([
             'ok' => true,
             'data' => [
@@ -112,7 +115,8 @@ class ShortlinkController extends Controller
                     'total_clicks' => $totalClicks,
                     'unique_visitors' => $uniqueVisitors,
                     'bot_percentage' => $botPercentage . '%',
-                    'today_clicks' => $todayClicks
+                    'today_clicks' => $todayClicks,
+                    'avg_clicks_per_link' => $avgClicksPerLink
                 ],
                 'chart_data' => $periodData['timeline'],
                 'current_period' => [

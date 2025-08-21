@@ -1055,8 +1055,8 @@
                 <div class="card-header">
                     <h2 class="card-title">Analytics Overview</h2>
                     <div class="analytics-controls">
-                        <button class="period-btn active" data-period="day">Day</button>
-                        <button class="period-btn" data-period="week">Week</button>
+                        <button class="period-btn" data-period="day">Day</button>
+                        <button class="period-btn active" data-period="week">Week</button>
                         <button class="period-btn" data-period="month">Month</button>
                         <button class="period-btn" data-period="year">Year</button>
                     </div>
@@ -1454,6 +1454,43 @@ function displayAnalytics(data) {
         updateCharts(data.chart_data);
     }
 
+    // Update comparison stats
+    const currentPeriodData = data.current_period || {};
+    const previousPeriodData = data.previous_period || {};
+    
+    const currentElement = document.getElementById('current-period');
+    const previousElement = document.getElementById('previous-period');
+    const changeElement = document.getElementById('comparison-change');
+    const labelElement = document.getElementById('comparison-label');
+    
+    if (currentElement) {
+        currentElement.textContent = currentPeriodData.total_clicks || 0;
+    }
+    if (previousElement) {
+        previousElement.textContent = previousPeriodData.total_clicks || 0;
+    }
+    if (labelElement) {
+        const periodLabels = {
+            'day': 'Previous Day',
+            'week': 'Previous Week', 
+            'month': 'Previous Month',
+            'year': 'Previous Year'
+        };
+        labelElement.textContent = periodLabels[currentPeriod] || 'Previous Period';
+    }
+    if (changeElement) {
+        const current = parseInt(currentPeriodData.total_clicks || 0);
+        const previous = parseInt(previousPeriodData.total_clicks || 0);
+        if (previous > 0) {
+            const change = ((current - previous) / previous * 100).toFixed(1);
+            changeElement.textContent = `${change > 0 ? '+' : ''}${change}%`;
+            changeElement.style.color = change > 0 ? 'var(--color-success)' : change < 0 ? 'var(--color-danger)' : 'var(--color-text-muted)';
+        } else {
+            changeElement.textContent = current > 0 ? '+100%' : '0%';
+            changeElement.style.color = current > 0 ? 'var(--color-success)' : 'var(--color-text-muted)';
+        }
+    }
+
     // Render sidebars: countries, devices, browsers, top links
     try {
         const escapeHtml = (str) => String(str == null ? '' : str)
@@ -1479,7 +1516,7 @@ function displayAnalytics(data) {
         }
 
         // Device stats
-        const devices = Array.isArray(data.device_stats) ? data.device_stats : [];
+        const devices = Array.isArray(data.device_types) ? data.device_types : [];
         const devicesList = document.getElementById('devices-list');
         if (devicesList) {
             if (devices.length === 0) {
@@ -1494,7 +1531,7 @@ function displayAnalytics(data) {
         }
 
         // Browser stats
-        const browsers = Array.isArray(data.browser_stats) ? data.browser_stats : [];
+        const browsers = Array.isArray(data.top_browsers) ? data.top_browsers : [];
         const browsersList = document.getElementById('browsers-list');
         if (browsersList) {
             if (browsers.length === 0) {
@@ -1509,7 +1546,7 @@ function displayAnalytics(data) {
         }
 
         // Top/Popular links
-        const topLinks = Array.isArray(data.top_links) ? data.top_links : [];
+        const topLinks = Array.isArray(data.popular_links) ? data.popular_links : [];
         const popularList = document.getElementById('popular-links');
         if (popularList) {
             if (topLinks.length === 0) {
@@ -1812,10 +1849,95 @@ function refreshData() {
     loadAnalytics();
 }
 
-// Update charts (placeholder function)
+// Update charts with Chart.js
 function updateCharts(chartData) {
-    // This can be implemented later with chart libraries like Chart.js
     console.log('Chart data received:', chartData);
+    
+    const canvas = document.getElementById('analytics-chart');
+    if (!canvas) {
+        console.warn('Chart canvas not found');
+        return;
+    }
+    
+    // Destroy existing chart if present
+    if (analyticsChart) {
+        analyticsChart.destroy();
+    }
+    
+    // Prepare chart data
+    if (!chartData || !Array.isArray(chartData)) {
+        console.warn('Invalid chart data');
+        return;
+    }
+    
+    const labels = chartData.map(item => item.label || item.date || 'Unknown');
+    const data = chartData.map(item => item.clicks || item.count || 0);
+    
+    // Create new chart
+    const ctx = canvas.getContext('2d');
+    analyticsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Clicks',
+                data: data,
+                borderColor: 'var(--color-primary)',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: 'var(--color-primary)',
+                pointBorderColor: 'var(--color-primary)',
+                pointHoverBackgroundColor: 'var(--color-accent)',
+                pointHoverBorderColor: 'var(--color-accent)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'var(--color-border)',
+                        borderColor: 'var(--color-border)'
+                    },
+                    ticks: {
+                        color: 'var(--color-text-muted)',
+                        font: {
+                            family: 'var(--font-mono)',
+                            size: 12
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'var(--color-border)',
+                        borderColor: 'var(--color-border)'
+                    },
+                    ticks: {
+                        color: 'var(--color-text-muted)',
+                        font: {
+                            family: 'var(--font-mono)',
+                            size: 12
+                        }
+                    }
+                }
+            },
+            elements: {
+                point: {
+                    radius: 4,
+                    hoverRadius: 6
+                }
+            }
+        }
+    });
 }
 
 // Form helper functions
@@ -2167,5 +2289,16 @@ async function toggleStopbot() {
         btn.disabled = false;
     }
 }
+
+// Initialize everything when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setupEventListeners();
+    loadLinks();
+    loadAnalytics();
+    
+    // Update current time every minute
+    setInterval(updateCurrentTime, 60000);
+    updateCurrentTime();
+});
 </script>
 @endsection
