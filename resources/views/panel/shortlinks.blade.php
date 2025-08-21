@@ -1290,11 +1290,15 @@ async function loadLinks() {
     `;
     
     try {
-        console.log('Loading links from /api/links...');
-        const response = await fetch('/api/links', {
+        console.log('Loading links from API...');
+        const apiUrl = window.location.protocol + '//' + window.location.host + '/api/links';
+        console.log('API URL:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
             }
         });
         
@@ -1329,11 +1333,15 @@ async function loadLinks() {
 // Load analytics data
 async function loadAnalytics() {
     try {
-        console.log('Loading analytics from /api/analytics...');
-        const response = await fetch(`/api/analytics?period=${currentPeriod || 'week'}`, {
+        console.log('Loading analytics...');
+        const apiUrl = window.location.protocol + '//' + window.location.host + `/api/analytics?period=${currentPeriod || 'week'}`;
+        console.log('Analytics API URL:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
             }
         });
         
@@ -1445,10 +1453,12 @@ async function deleteLink(slug) {
     if (!confirm(`Are you sure you want to delete /${slug}?`)) return;
     
     try {
-        const response = await fetch(`/api/delete/${slug}`, {
+        const apiUrl = window.location.protocol + '//' + window.location.host + `/api/delete/${slug}`;
+        const response = await fetch(apiUrl, {
             method: 'DELETE',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
             }
         });
         
@@ -1731,8 +1741,11 @@ async function createShortlink() {
         
         console.log('Final data being sent to API:', data);
 
-        // Make API request
-        const response = await fetch('/api/create', {
+        // Make API request with better error handling for production
+        const apiUrl = window.location.protocol + '//' + window.location.host + '/api/create';
+        console.log('Making request to:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend JavaScript Debug Tool</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #0a0a0a;
+            color: #22c55e;
+            padding: 20px;
+            margin: 0;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: #22c55e;
+            color: #000;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+        }
+        .btn:hover { background: #16a34a; }
+        .form-group { margin-bottom: 15px; }
+        input, select, textarea {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #333;
+            color: #22c55e;
+            padding: 8px;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        #output {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+            color: #e0e0e0;
+        }
+        .success { color: #22c55e; }
+        .error { color: #ef4444; }
+        .warning { color: #f59e0b; }
+        .info { color: #3b82f6; }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        .notification.success { background: #22c55e; }
+        .notification.error { background: #ef4444; }
+        .notification.warning { background: #f59e0b; }
+        .notification.info { background: #3b82f6; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Frontend JavaScript Debug Tool</h1>
+        
+        <div class="section">
+            <h2>🌐 Environment Information</h2>
+            <button class="btn" onclick="checkEnvironment()">Check Environment</button>
+            <div id="env-info"></div>
+        </div>
+        
+        <div class="section">
+            <h2>📡 CSRF Token Test</h2>
+            <button class="btn" onclick="testCSRF()">Test CSRF Token</button>
+            <div id="csrf-info"></div>
+        </div>
+        
+        <div class="section">
+            <h2>🔗 API Endpoints Test</h2>
+            <button class="btn" onclick="testAllEndpoints()">Test All API Endpoints</button>
+            <div id="api-test-results"></div>
+        </div>
+        
+        <div class="section">
+            <h2>📝 Shortlink Creation Test</h2>
+            <div class="form-group">
+                <label>Link Type:</label>
+                <select id="test-link-type" onchange="toggleTestForm()">
+                    <option value="single">Single Link</option>
+                    <option value="rotator">Link Rotator</option>
+                </select>
+            </div>
+            
+            <div id="single-form">
+                <div class="form-group">
+                    <label>Destination URL:</label>
+                    <input type="url" id="test-destination" value="https://www.google.com" placeholder="https://example.com">
+                </div>
+            </div>
+            
+            <div id="rotator-form" style="display: none;">
+                <div class="form-group">
+                    <label>Destination URLs (one per line):</label>
+                    <textarea id="test-destinations" rows="4" placeholder="https://www.google.com&#10;https://www.youtube.com&#10;https://www.github.com"></textarea>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Custom Slug (optional):</label>
+                <input type="text" id="test-slug" placeholder="my-custom-link">
+            </div>
+            
+            <button class="btn" onclick="testShortlinkCreation()">Test Shortlink Creation</button>
+            <div id="creation-test-results"></div>
+        </div>
+        
+        <div class="section">
+            <h2>📋 Debug Console</h2>
+            <button class="btn" onclick="clearOutput()">Clear Output</button>
+            <div id="output"></div>
+        </div>
+    </div>
+
+    <script>
+        let output = document.getElementById('output');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            output.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function clearOutput() {
+            output.innerHTML = '';
+        }
+        
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+        
+        function checkEnvironment() {
+            log('🔍 Checking environment...', 'info');
+            
+            const envInfo = document.getElementById('env-info');
+            let html = '<h3>Environment Details:</h3><ul>';
+            
+            // Browser info
+            html += `<li><strong>User Agent:</strong> ${navigator.userAgent}</li>`;
+            html += `<li><strong>Location:</strong> ${window.location.href}</li>`;
+            html += `<li><strong>Protocol:</strong> ${window.location.protocol}</li>`;
+            html += `<li><strong>Host:</strong> ${window.location.host}</li>`;
+            html += `<li><strong>Port:</strong> ${window.location.port || 'default'}</li>`;
+            
+            // HTTPS check
+            const isHttps = window.location.protocol === 'https:';
+            html += `<li><strong>HTTPS:</strong> ${isHttps ? '✅ Yes' : '⚠️ No (may cause mixed content issues)'}</li>`;
+            
+            // Local storage
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                html += `<li><strong>Local Storage:</strong> ✅ Available</li>`;
+            } catch (e) {
+                html += `<li><strong>Local Storage:</strong> ❌ Not available</li>`;
+            }
+            
+            // Fetch API
+            html += `<li><strong>Fetch API:</strong> ${typeof fetch !== 'undefined' ? '✅ Available' : '❌ Not available'}</li>`;
+            
+            // Console
+            html += `<li><strong>Console:</strong> ${typeof console !== 'undefined' ? '✅ Available' : '❌ Not available'}</li>`;
+            
+            html += '</ul>';
+            envInfo.innerHTML = html;
+            
+            log('✅ Environment check complete', 'success');
+        }
+        
+        function testCSRF() {
+            log('🔒 Testing CSRF token...', 'info');
+            
+            const csrfInfo = document.getElementById('csrf-info');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]');
+            
+            if (csrfToken) {
+                const token = csrfToken.getAttribute('content');
+                csrfInfo.innerHTML = `
+                    <h3>CSRF Token Information:</h3>
+                    <ul>
+                        <li><strong>Token Found:</strong> ✅ Yes</li>
+                        <li><strong>Token Value:</strong> ${token.substring(0, 20)}...</li>
+                        <li><strong>Token Length:</strong> ${token.length} characters</li>
+                    </ul>
+                `;
+                log('✅ CSRF token found and valid', 'success');
+            } else {
+                csrfInfo.innerHTML = `
+                    <h3>CSRF Token Information:</h3>
+                    <ul>
+                        <li><strong>Token Found:</strong> ❌ No</li>
+                        <li><strong>Issue:</strong> meta[name="csrf-token"] not found in page head</li>
+                    </ul>
+                `;
+                log('❌ CSRF token not found', 'error');
+            }
+        }
+        
+        async function testAllEndpoints() {
+            log('🔗 Testing API endpoints...', 'info');
+            
+            const resultsDiv = document.getElementById('api-test-results');
+            let html = '<h3>API Endpoint Tests:</h3><ul>';
+            
+            const endpoints = [
+                { name: 'Health Check', url: '/health', method: 'GET' },
+                { name: 'List Shortlinks', url: '/api/list', method: 'GET' },
+                { name: 'Analytics', url: '/api/analytics', method: 'GET' },
+                { name: 'Panel', url: '/panel', method: 'GET' }
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    log(`Testing ${endpoint.name} (${endpoint.method} ${endpoint.url})...`, 'info');
+                    
+                    const response = await fetch(endpoint.url, {
+                        method: endpoint.method,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    
+                    const status = response.status;
+                    const isOk = status >= 200 && status < 300;
+                    const contentType = response.headers.get('content-type') || '';
+                    
+                    html += `<li><strong>${endpoint.name}:</strong> `;
+                    html += `${isOk ? '✅' : '❌'} HTTP ${status}`;
+                    
+                    if (contentType.includes('application/json')) {
+                        try {
+                            const data = await response.json();
+                            if (data.ok !== undefined) {
+                                html += ` - API Response: ${data.ok ? 'OK' : 'Error'}`;
+                            }
+                        } catch (e) {
+                            html += ` - JSON Parse Error`;
+                        }
+                    } else {
+                        html += ` - Content-Type: ${contentType}`;
+                    }
+                    html += '</li>';
+                    
+                    log(`${endpoint.name}: ${isOk ? 'SUCCESS' : 'FAILED'} (HTTP ${status})`, isOk ? 'success' : 'error');
+                    
+                } catch (error) {
+                    html += `<li><strong>${endpoint.name}:</strong> ❌ ${error.message}</li>`;
+                    log(`${endpoint.name}: ERROR - ${error.message}`, 'error');
+                }
+            }
+            
+            html += '</ul>';
+            resultsDiv.innerHTML = html;
+            
+            log('✅ API endpoint tests complete', 'success');
+        }
+        
+        function toggleTestForm() {
+            const linkType = document.getElementById('test-link-type').value;
+            const singleForm = document.getElementById('single-form');
+            const rotatorForm = document.getElementById('rotator-form');
+            
+            if (linkType === 'rotator') {
+                singleForm.style.display = 'none';
+                rotatorForm.style.display = 'block';
+            } else {
+                singleForm.style.display = 'block';
+                rotatorForm.style.display = 'none';
+            }
+        }
+        
+        async function testShortlinkCreation() {
+            log('📝 Testing shortlink creation...', 'info');
+            
+            const resultsDiv = document.getElementById('creation-test-results');
+            const linkType = document.getElementById('test-link-type').value;
+            const slug = document.getElementById('test-slug').value.trim();
+            
+            let data = {
+                is_rotator: linkType === 'rotator'
+            };
+            
+            if (slug) {
+                data.slug = slug;
+            }
+            
+            if (linkType === 'rotator') {
+                const destinationsText = document.getElementById('test-destinations').value.trim();
+                if (!destinationsText) {
+                    log('❌ No destinations provided for rotator', 'error');
+                    resultsDiv.innerHTML = '<p class="error">❌ Please provide destination URLs for rotator</p>';
+                    return;
+                }
+                
+                const urls = destinationsText.split('\n').filter(url => url.trim());
+                data.rotation_type = 'random';
+                data.destinations = urls.map((url, index) => ({
+                    url: url.trim(),
+                    name: `Destination ${index + 1}`,
+                    weight: 1,
+                    active: true
+                }));
+                
+                log(`Creating rotator with ${data.destinations.length} destinations`, 'info');
+            } else {
+                const destination = document.getElementById('test-destination').value.trim();
+                if (!destination) {
+                    log('❌ No destination provided for single link', 'error');
+                    resultsDiv.innerHTML = '<p class="error">❌ Please provide a destination URL</p>';
+                    return;
+                }
+                data.destination = destination;
+                log(`Creating single link to ${destination}`, 'info');
+            }
+            
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                if (!csrfToken) {
+                    throw new Error('CSRF token not found');
+                }
+                
+                log('Making API request...', 'info');
+                log(`Request data: ${JSON.stringify(data, null, 2)}`, 'info');
+                
+                const response = await fetch('/api/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                log(`Response status: ${response.status}`, 'info');
+                log(`Response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`, 'info');
+                
+                const contentType = response.headers.get('content-type') || '';
+                let result;
+                
+                if (contentType.includes('application/json')) {
+                    result = await response.json();
+                    log(`Response data: ${JSON.stringify(result, null, 2)}`, 'info');
+                } else {
+                    const text = await response.text();
+                    log(`Non-JSON response: ${text}`, 'warning');
+                    throw new Error('Server returned non-JSON response');
+                }
+                
+                if (response.ok && result.ok) {
+                    const successMsg = `✅ Shortlink created successfully!`;
+                    log(successMsg, 'success');
+                    showNotification(successMsg, 'success');
+                    
+                    resultsDiv.innerHTML = `
+                        <h3>✅ Creation Successful!</h3>
+                        <ul>
+                            <li><strong>Status:</strong> ${response.status}</li>
+                            <li><strong>Slug:</strong> ${result.data?.slug || 'N/A'}</li>
+                            <li><strong>Short URL:</strong> ${result.short_url || 'N/A'}</li>
+                            <li><strong>Type:</strong> ${linkType}</li>
+                        </ul>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                } else {
+                    throw new Error(result.message || `HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+            } catch (error) {
+                const errorMsg = `❌ Shortlink creation failed: ${error.message}`;
+                log(errorMsg, 'error');
+                showNotification(errorMsg, 'error');
+                
+                resultsDiv.innerHTML = `
+                    <h3>❌ Creation Failed!</h3>
+                    <p class="error">${error.message}</p>
+                    <p>Check the debug console above for detailed information.</p>
+                `;
+            }
+        }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Frontend JavaScript Debug Tool loaded', 'success');
+            checkEnvironment();
+            testCSRF();
+        });
+    </script>
+</body>
+</html>
