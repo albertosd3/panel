@@ -39,47 +39,50 @@ Route::middleware('panel.auth')->group(function () {
 
     Route::post('/panel/logout', [PanelAuthController::class, 'logout'])->name('panel.logout');
     Route::post('/logout', [PanelAuthController::class, 'logout'])->name('logout');
-    
-    // API routes for AJAX calls
-    Route::prefix('api')->group(function () {
-        Route::get('/links', [ShortlinkController::class, 'list'])->name('api.links');
-        Route::get('/analytics', [ShortlinkController::class, 'analytics'])->name('api.analytics');
-        Route::post('/create', [ShortlinkController::class, 'store'])->name('api.create');
-        Route::post('/reset-visitors/{slug}', [ShortlinkController::class, 'resetVisitors'])->name('api.reset-visitors');
-        Route::post('/reset-all-visitors', [ShortlinkController::class, 'resetAllVisitors'])->name('api.reset-all-visitors');
-        Route::delete('/delete/{slug}', [ShortlinkController::class, 'destroy'])->name('api.delete-shortlink');
-        Route::put('/rotator/{slug}', [ShortlinkController::class, 'updateRotator'])->name('api.update-rotator');
-        Route::get('/rotator/{slug}', [ShortlinkController::class, 'getRotator'])->name('api.get-rotator');
-        Route::get('/debug', function () {
-            return response()->json([
-                'ok' => true,
-                'message' => 'API is working',
-                'time' => now(),
-                'csrf' => csrf_token(),
-                'authenticated' => session('panel_authenticated', false),
-                'session_id' => session()->getId()
-            ]);
-        });
-        
-        // Debug shortlink creation
-        Route::post('/debug/create', function (\Illuminate\Http\Request $request) {
-            return response()->json([
-                'ok' => true,
-                'received_data' => $request->all(),
-                'content_type' => $request->header('Content-Type'),
-                'method' => $request->method(),
-                'json_data' => $request->json()->all(),
-                'is_rotator_bool' => $request->boolean('is_rotator'),
-                'has_destination' => $request->has('destination'),
-                'has_destinations' => $request->has('destinations')
-            ]);
-        });
+});
 
-        // Stopbot configuration API endpoints
-        Route::post('/stopbot/config', [ShortlinkController::class, 'saveStopbotConfig'])->name('panel.api.stopbot.config');
-        Route::post('/stopbot/test', [ShortlinkController::class, 'testStopbotApi'])->name('panel.api.stopbot.test');
-        Route::get('/stopbot/stats', [ShortlinkController::class, 'getStopbotStats'])->name('panel.api.stopbot.stats');
+// API routes for AJAX calls (outside panel.auth middleware)
+Route::prefix('api')->group(function () {
+    Route::get('/shortlinks/{slug}/visitors', [ShortlinkController::class, 'visitorsList'])->name('api.shortlinks.visitors');
+    Route::get('/links', [ShortlinkController::class, 'list'])->name('api.links');
+    Route::get('/analytics', [ShortlinkController::class, 'analytics'])->name('api.analytics');
+    Route::post('/create', [ShortlinkController::class, 'store'])->name('api.create');
+    Route::post('/reset-visitors/{slug}', [ShortlinkController::class, 'resetVisitors'])->name('api.reset-visitors');
+    Route::post('/reset-all-visitors', [ShortlinkController::class, 'resetAllVisitors'])->name('api.reset-all-visitors');
+    Route::delete('/delete/{slug}', [ShortlinkController::class, 'destroy'])->name('api.delete-shortlink');
+    Route::put('/rotator/{slug}', [ShortlinkController::class, 'updateRotator'])->name('api.update-rotator');
+    Route::get('/rotator/{slug}', [ShortlinkController::class, 'getRotator'])->name('api.get-rotator');
+    Route::get('/debug', function () {
+        return response()->json([
+            'ok' => true,
+            'message' => 'API is working',
+            'time' => now(),
+            'csrf' => csrf_token(),
+            'authenticated' => session('panel_authenticated', false),
+            'session_id' => session()->getId()
+        ]);
     });
+    
+
+    
+    // Debug shortlink creation
+    Route::post('/debug/create', function (\Illuminate\Http\Request $request) {
+        return response()->json([
+            'ok' => true,
+            'received_data' => $request->all(),
+            'content_type' => $request->header('Content-Type'),
+            'method' => $request->method(),
+            'json_data' => $request->json()->all(),
+            'is_rotator_bool' => $request->boolean('is_rotator'),
+            'has_destination' => $request->has('destinations'),
+            'has_destinations' => $request->has('destinations')
+        ]);
+    });
+
+    // Stopbot configuration API endpoints
+    Route::post('/stopbot/config', [ShortlinkController::class, 'saveStopbotConfig'])->name('panel.api.stopbot.config');
+    Route::post('/stopbot/test', [ShortlinkController::class, 'testStopbotApi'])->name('panel.api.stopbot.test');
+    Route::get('/stopbot/stats', [ShortlinkController::class, 'getStopbotStats'])->name('panel.api.stopbot.stats');
 });
 
 // Health check route for domain testing

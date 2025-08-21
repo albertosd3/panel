@@ -971,6 +971,9 @@
                 </div>
             </div>
             <div class="header-actions">
+                <a href="{{ route('panel.analytics') }}" class="btn btn-outline">
+                    📊 Analytics
+                </a>
                 <a href="{{ route('panel.stopbot') }}" class="btn btn-secondary">
                     🛡️ Stopbot Config
                 </a>

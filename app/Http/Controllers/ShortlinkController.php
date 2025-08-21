@@ -96,22 +96,39 @@ class ShortlinkController extends Controller
             ->limit(10)
             ->get();
 
+        // Calculate unique visitors
+        $uniqueVisitors = ShortlinkVisitor::when(!$countBots, fn($q) => $q->where('is_bot', false))->distinct('ip')->count();
+        
+        // Calculate bot percentage
+        $totalEvents = ShortlinkEvent::count();
+        $botEvents = ShortlinkEvent::where('is_bot', true)->count();
+        $botPercentage = $totalEvents > 0 ? round(($botEvents / $totalEvents) * 100, 1) : 0;
+        
         return response()->json([
             'ok' => true,
             'data' => [
                 'overview' => [
                     'total_links' => $totalLinks,
                     'total_clicks' => $totalClicks,
-                    'today_clicks' => $todayClicks,
-                    'avg_clicks_per_link' => $totalLinks > 0 ? round($totalClicks / $totalLinks, 1) : 0
+                    'unique_visitors' => $uniqueVisitors,
+                    'bot_percentage' => $botPercentage . '%',
+                    'today_clicks' => $todayClicks
                 ],
-                'timeline' => $periodData['timeline'],
-                'comparison' => $periodData['comparison'],
-                'period' => $period,
+                'chart_data' => $periodData['timeline'],
+                'current_period' => [
+                    'total_clicks' => $periodData['comparison']['current'],
+                    'unique_visitors' => $uniqueVisitors,
+                    'bot_percentage' => $botPercentage . '%'
+                ],
+                'previous_period' => [
+                    'total_clicks' => $periodData['comparison']['previous'],
+                    'unique_visitors' => $uniqueVisitors, // This should be calculated separately
+                    'bot_percentage' => $botPercentage . '%' // This should be calculated separately
+                ],
                 'top_countries' => $topCountries,
-                'device_stats' => $deviceStats,
-                'browser_stats' => $browserStats,
-                'top_links' => $topLinks
+                'device_types' => $deviceStats,
+                'top_browsers' => $browserStats,
+                'popular_links' => $topLinks
             ]
         ]);
     }

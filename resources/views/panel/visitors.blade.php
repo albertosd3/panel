@@ -47,13 +47,17 @@ const slug = '{{ $link->slug }}';
 
 async function loadVisitors(q = ''){
     try{
-        const res = await fetch(`/panel/api/shortlinks/${slug}/visitors` + (q ? '?q=' + encodeURIComponent(q) : ''), {
+        const url = `/api/shortlinks/${slug}/visitors` + (q ? '?q=' + encodeURIComponent(q) : '');
+        
+        const res = await fetch(url, {
             headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
         });
+        
         const json = await res.json();
         const tbody = document.querySelector('#visitorsTable tbody');
         tbody.innerHTML = '';
-        if(json.ok){
+        
+        if(json.ok && json.data && json.data.length > 0){
             json.data.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -68,9 +72,13 @@ async function loadVisitors(q = ''){
                 `;
                 tbody.appendChild(tr);
             });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No visitors found</td></tr>';
         }
     }catch(e){
-        console.error(e);
+        console.error('Error loading visitors:', e);
+        const tbody = document.querySelector('#visitorsTable tbody');
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading data: ' + e.message + '</td></tr>';
     }
 }
 
@@ -78,8 +86,15 @@ function copyIp(ip){
     navigator.clipboard.writeText(ip).then(()=> alert('IP copied: ' + ip));
 }
 
-document.getElementById('refreshBtn').addEventListener('click', ()=> loadVisitors(document.getElementById('visitorSearch').value));
-document.getElementById('visitorSearch').addEventListener('keyup', (e)=> { if(e.key === 'Enter') loadVisitors(e.target.value); });
+document.getElementById('refreshBtn').addEventListener('click', ()=> {
+    loadVisitors(document.getElementById('visitorSearch').value);
+});
+
+document.getElementById('visitorSearch').addEventListener('keyup', (e)=> { 
+    if(e.key === 'Enter') {
+        loadVisitors(e.target.value); 
+    }
+});
 
 loadVisitors();
 </script>
