@@ -54,5 +54,22 @@ return [
         'googlebot', 'bingbot', 'slurp', 'duckduckbot', 'baiduspider', 'yandexbot',
         'facebookexternalhit', 'twitterbot', 'linkedinbot', 'pinterest', 'whatsapp',
         'telegrambot', 'skype', 'applebot', 'ia_archiver'
-    ]
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stopbot.net Bot Blocking Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for external bot blocking service stopbot.net
+    | This provides additional bot detection beyond the built-in system.
+    |
+    */
+    'stopbot' => [
+        'enabled' => env('STOPBOT_ENABLED', false),
+        'api_key' => env('STOPBOT_API_KEY'),
+        'redirect_url' => env('STOPBOT_REDIRECT_URL', 'https://www.google.com'),
+        'log_enabled' => env('STOPBOT_LOG_ENABLED', true),
+        'timeout' => env('STOPBOT_TIMEOUT', 5), // seconds
+    ],
 ];

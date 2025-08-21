@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'panel.auth' => \App\Http\Middleware\EnsurePanelAuthenticated::class,
+            'stopbot' => \App\Http\Middleware\StopbotMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

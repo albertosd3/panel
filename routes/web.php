@@ -34,6 +34,9 @@ Route::middleware('panel.auth')->group(function () {
     // IPs management UI
     Route::get('/panel/ips', [ShortlinkController::class, 'ips'])->name('panel.ips');
 
+    // Stopbot configuration UI
+    Route::get('/panel/stopbot', [ShortlinkController::class, 'stopbotConfig'])->name('panel.stopbot');
+
     Route::post('/panel/logout', [PanelAuthController::class, 'logout'])->name('panel.logout');
     Route::post('/logout', [PanelAuthController::class, 'logout'])->name('logout');
     
@@ -57,6 +60,11 @@ Route::middleware('panel.auth')->group(function () {
                 'session_id' => session()->getId()
             ]);
         });
+
+        // Stopbot configuration API endpoints
+        Route::post('/stopbot/config', [ShortlinkController::class, 'saveStopbotConfig'])->name('panel.api.stopbot.config');
+        Route::post('/stopbot/test', [ShortlinkController::class, 'testStopbotApi'])->name('panel.api.stopbot.test');
+        Route::get('/stopbot/stats', [ShortlinkController::class, 'getStopbotStats'])->name('panel.api.stopbot.stats');
     });
 });
 
@@ -71,8 +79,10 @@ Route::post('/_human_verify', [ShortlinkController::class, 'verifyHuman'])
     ->withoutMiddleware([ValidateCsrfToken::class]);
 
 // Public redirect route (keep at bottom, after other routes)
+// Apply stopbot middleware to block bots before they access shortlinks
 Route::get('/{slug}', [ShortlinkController::class, 'redirect'])
     ->where('slug', '[A-Za-z0-9_-]+')
+    ->middleware(['stopbot'])
     ->withoutMiddleware([
         StartSession::class,
         AuthenticateSession::class,

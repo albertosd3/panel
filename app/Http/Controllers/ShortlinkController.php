@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\RecordShortlinkHit;
 use App\Models\BlockedIp;
+use App\Models\PanelSetting;
 use App\Models\Shortlink;
 use App\Models\ShortlinkEvent;
 use App\Models\ShortlinkVisitor;
@@ -11,6 +12,7 @@ use GeoIp2\Database\Reader as GeoIP2Reader;
 use GeoIp2\WebService\Client as GeoIP2Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Jaybizzle\CrawlerDetect\CrawlerDetect;
 use Jenssegers\Agent\Agent;
@@ -462,6 +464,17 @@ class ShortlinkController extends Controller
         // Aggressive heuristics
         if (config('panel.aggressive_bot_detection', true)) {
             $isBot = $isBot || $this->isAggressiveBot($ip, $userAgent, $country, $asn, $org);
+        }
+
+        // Integrate with Stopbot.net if enabled
+        $stopbotService = app(\App\Services\StopbotService::class);
+        if ($stopbotService->isEnabled()) {
+            $stopbotBlocked = $stopbotService->shouldBlock($ip, $userAgent, $request->getRequestUri());
+            if ($stopbotBlocked) {
+                // Log the block but continue with local processing
+                \Log::info("Stopbot would block IP {$ip}, but proceeding with local bot detection");
+                $isBot = true; // Mark as bot for our local analytics
+            }
         }
 
         // Don't block configured legitimate crawlers
@@ -1059,5 +1072,92 @@ class ShortlinkController extends Controller
         ->get();
 
         return response()->json(['ok' => true, 'data' => $query]);
+    }
+
+    /**
+     * Show Stopbot configuration page
+     */
+    public function stopbotConfig()
+    {
+        return view('panel.stopbot');
+    }
+
+    /**
+     * Save Stopbot configuration
+     */
+    public function saveStopbotConfig(Request $request)
+    {
+        $data = $request->validate([
+            'enabled' => 'boolean',
+            'api_key' => 'nullable|string|max:255',
+            'redirect_url' => 'nullable|url|max:255',
+            'log_enabled' => 'boolean',
+            'timeout' => 'nullable|integer|min:1|max:30'
+        ]);
+
+        try {
+            // Save to database instead of .env
+            \App\Models\PanelSetting::set('stopbot_enabled', $data['enabled'], 'boolean', 'stopbot', 'Enable Stopbot.net integration');
+            \App\Models\PanelSetting::set('stopbot_api_key', $data['api_key'] ?? '', 'string', 'stopbot', 'Stopbot.net API key');
+            \App\Models\PanelSetting::set('stopbot_redirect_url', $data['redirect_url'] ?? '', 'string', 'stopbot', 'URL to redirect blocked requests');
+            \App\Models\PanelSetting::set('stopbot_log_enabled', $data['log_enabled'], 'boolean', 'stopbot', 'Enable Stopbot logging');
+            \App\Models\PanelSetting::set('stopbot_timeout', $data['timeout'] ?? 5, 'integer', 'stopbot', 'API timeout in seconds');
+
+            return response()->json(['ok' => true, 'message' => 'Configuration saved successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['ok' => false, 'message' => 'Failed to save configuration: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get Stopbot usage statistics
+     */
+    public function getStopbotStats(Request $request)
+    {
+        try {
+            // Get statistics from logs or database
+            $totalChecks = ShortlinkEvent::count();
+            $blockedRequests = ShortlinkEvent::where('is_bot', true)->count();
+            $successRate = $totalChecks > 0 ? round((($totalChecks - $blockedRequests) / $totalChecks) * 100, 1) . '%' : '0%';
+
+            return response()->json([
+                'ok' => true, 
+                'data' => [
+                    'total_checks' => $totalChecks,
+                    'blocked_requests' => $blockedRequests,
+                    'success_rate' => $successRate
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Test Stopbot API connection
+     */
+    public function testStopbotApi(Request $request)
+    {
+        $apiKey = $request->validate(['api_key' => 'required|string'])['api_key'];
+
+        try {
+            $response = Http::timeout(10)->get('https://stopbot.net/api/blocker', [
+                'apikey' => $apiKey,
+                'ip' => '8.8.8.8', // Google DNS for testing
+                'ua' => 'Mozilla/5.0 (Test)',
+                'url' => '/test',
+                'rand' => rand(1, 1000000)
+            ]);
+
+            if (!$response->successful()) {
+                return response()->json(['ok' => false, 'message' => 'HTTP ' . $response->status()]);
+            }
+
+            $data = $response->json();
+            return response()->json(['ok' => true, 'data' => $data]);
+
+        } catch (\Exception $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()]);
+        }
     }
 }
