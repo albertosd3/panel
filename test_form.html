@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="test-token">
+    <title>Shortlink Creation Test</title>
+    <style>
+        body { font-family: monospace; background: #0a0a0a; color: #e0e0e0; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; margin-bottom: 5px; color: #22c55e; }
+        .form-input { width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #333; color: #e0e0e0; }
+        .btn { padding: 10px 15px; background: #22c55e; color: #000; border: none; cursor: pointer; }
+        .link-type-toggle { display: flex; gap: 10px; margin-bottom: 15px; }
+        .toggle-option { padding: 8px 12px; border: 1px solid #333; cursor: pointer; }
+        .toggle-option input { margin-right: 5px; }
+        .destination-item { border: 1px solid #333; padding: 10px; margin-bottom: 10px; }
+        .destination-inputs { display: grid; grid-template-columns: 2fr 1fr 80px 40px; gap: 8px; }
+        .btn-remove-destination { background: #dc2626; }
+        #output { margin-top: 20px; padding: 10px; background: #1a1a1a; border: 1px solid #333; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔗 Shortlink Creation Test</h1>
+    
+    <form id="create-form">
+        <!-- Link Type Toggle -->
+        <div class="form-group">
+            <div class="link-type-toggle">
+                <label class="toggle-option">
+                    <input type="radio" name="link_type" value="single" checked onchange="toggleLinkType()">
+                    <span>📎 Single Link</span>
+                </label>
+                <label class="toggle-option">
+                    <input type="radio" name="link_type" value="rotator" onchange="toggleLinkType()">
+                    <span>🔄 Link Rotator</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Single Destination -->
+        <div id="single-destination" class="destination-section">
+            <div class="form-group">
+                <label class="form-label" for="destination">Destination URL</label>
+                <input type="url" 
+                       id="destination" 
+                       name="destination" 
+                       class="form-input" 
+                       placeholder="https://example.com/your-long-url"
+                       value="https://www.google.com">
+            </div>
+        </div>
+
+        <!-- Rotator Destinations -->
+        <div id="rotator-destinations" class="destination-section" style="display: none;">
+            <div class="form-group">
+                <label class="form-label">Rotation Type</label>
+                <select name="rotation_type" class="form-input">
+                    <option value="random">Random</option>
+                    <option value="sequential">Sequential</option>
+                    <option value="weighted">Weighted</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Destinations</label>
+                <div id="destinations-container">
+                    <div class="destination-item">
+                        <div class="destination-inputs">
+                            <input type="url" name="destinations[0][url]" class="form-input destination-url" placeholder="https://example.com/page-1" value="https://www.google.com">
+                            <input type="text" name="destinations[0][name]" class="form-input destination-name" placeholder="Name" value="Google">
+                            <input type="number" name="destinations[0][weight]" class="form-input destination-weight" placeholder="Weight" value="1" min="1" max="100">
+                            <button type="button" class="btn-remove-destination" onclick="removeDestination(this)">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="destination-item">
+                        <div class="destination-inputs">
+                            <input type="url" name="destinations[1][url]" class="form-input destination-url" placeholder="https://example.com/page-2" value="https://www.bing.com">
+                            <input type="text" name="destinations[1][name]" class="form-input destination-name" placeholder="Name" value="Bing">
+                            <input type="number" name="destinations[1][weight]" class="form-input destination-weight" placeholder="Weight" value="2" min="1" max="100">
+                            <button type="button" class="btn-remove-destination" onclick="removeDestination(this)">🗑️</button>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="addDestination()">+ Add Destination</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="slug">Custom Slug (optional)</label>
+            <input type="text" 
+                   id="slug" 
+                   name="slug" 
+                   class="form-input" 
+                   placeholder="my-custom-link">
+        </div>
+        
+        <button type="submit" class="btn">✨ Create Shortlink</button>
+        <button type="button" class="btn" onclick="testFormData()">🧪 Test Form Data</button>
+    </form>
+
+    <div id="output"></div>
+
+    <script>
+        function toggleLinkType() {
+            const linkType = document.querySelector('input[name="link_type"]:checked').value;
+            const singleSection = document.getElementById('single-destination');
+            const rotatorSection = document.getElementById('rotator-destinations');
+            
+            if (linkType === 'single') {
+                singleSection.style.display = 'block';
+                rotatorSection.style.display = 'none';
+            } else {
+                singleSection.style.display = 'none';
+                rotatorSection.style.display = 'block';
+            }
+        }
+
+        function addDestination() {
+            const container = document.getElementById('destinations-container');
+            const index = container.children.length;
+            
+            const destinationHtml = `
+                <div class="destination-item">
+                    <div class="destination-inputs">
+                        <input type="url" name="destinations[${index}][url]" class="form-input destination-url" placeholder="https://example.com/page-${index + 1}">
+                        <input type="text" name="destinations[${index}][name]" class="form-input destination-name" placeholder="Name">
+                        <input type="number" name="destinations[${index}][weight]" class="form-input destination-weight" placeholder="Weight" value="1" min="1" max="100">
+                        <button type="button" class="btn-remove-destination" onclick="removeDestination(this)">🗑️</button>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', destinationHtml);
+        }
+
+        function removeDestination(button) {
+            const container = document.getElementById('destinations-container');
+            if (container.children.length > 1) {
+                button.closest('.destination-item').remove();
+            }
+        }
+
+        function testFormData() {
+            const form = document.getElementById('create-form');
+            const formData = new FormData(form);
+            
+            // Convert FormData to JSON like in the real code
+            const data = {};
+            
+            // Get link type from radio buttons
+            const linkTypeRadio = document.querySelector('input[name="link_type"]:checked');
+            if (!linkTypeRadio) {
+                alert('Please select link type');
+                return;
+            }
+            
+            const linkType = linkTypeRadio.value;
+            data.is_rotator = linkType === 'rotator';
+            
+            if (data.is_rotator) {
+                // Handle rotator data
+                data.rotation_type = formData.get('rotation_type') || 'random';
+                data.destinations = [];
+                
+                // Get all destination inputs
+                const destinationItems = document.querySelectorAll('#destinations-container .destination-item');
+                
+                destinationItems.forEach((item, index) => {
+                    const urlInput = item.querySelector('input[name*="[url]"]');
+                    const nameInput = item.querySelector('input[name*="[name]"]');
+                    const weightInput = item.querySelector('input[name*="[weight]"]');
+                    
+                    const url = urlInput ? urlInput.value.trim() : '';
+                    const name = nameInput ? nameInput.value.trim() : '';
+                    const weight = weightInput ? parseInt(weightInput.value) || 1 : 1;
+                    
+                    if (url) {
+                        data.destinations.push({
+                            url: url,
+                            name: name,
+                            weight: weight,
+                            active: true
+                        });
+                    }
+                });
+            } else {
+                // Handle single destination
+                data.destination = formData.get('destination');
+                if (!data.destination || !data.destination.trim()) {
+                    alert('Destination URL is required');
+                    return;
+                }
+                data.destination = data.destination.trim();
+            }
+            
+            // Handle optional slug
+            data.slug = formData.get('slug');
+            if (data.slug) {
+                data.slug = data.slug.trim();
+            }
+            
+            document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function createShortlink() {
+            const form = document.getElementById('create-form');
+            const formData = new FormData(form);
+            
+            // Convert FormData to JSON exactly like the real code
+            const data = {};
+            
+            // Get link type from radio buttons
+            const linkTypeRadio = document.querySelector('input[name="link_type"]:checked');
+            if (!linkTypeRadio) {
+                throw new Error('Please select link type');
+            }
+            
+            const linkType = linkTypeRadio.value;
+            data.is_rotator = linkType === 'rotator';
+            
+            if (data.is_rotator) {
+                // Handle rotator data
+                data.rotation_type = formData.get('rotation_type') || 'random';
+                data.destinations = [];
+                
+                // Get all destination inputs
+                const destinationItems = document.querySelectorAll('#destinations-container .destination-item');
+                
+                destinationItems.forEach((item, index) => {
+                    const urlInput = item.querySelector('input[name*="[url]"]');
+                    const nameInput = item.querySelector('input[name*="[name]"]');
+                    const weightInput = item.querySelector('input[name*="[weight]"]');
+                    
+                    const url = urlInput ? urlInput.value.trim() : '';
+                    const name = nameInput ? nameInput.value.trim() : '';
+                    const weight = weightInput ? parseInt(weightInput.value) || 1 : 1;
+                    
+                    if (url) {
+                        data.destinations.push({
+                            url: url,
+                            name: name,
+                            weight: weight,
+                            active: true
+                        });
+                    }
+                });
+                
+                if (data.destinations.length === 0) {
+                    throw new Error('At least one destination URL is required for rotator');
+                }
+            } else {
+                // Handle single destination
+                data.destination = formData.get('destination');
+                if (!data.destination || !data.destination.trim()) {
+                    throw new Error('Destination URL is required');
+                }
+                data.destination = data.destination.trim();
+            }
+            
+            // Handle optional slug
+            data.slug = formData.get('slug');
+            if (data.slug) {
+                data.slug = data.slug.trim();
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                
+                document.getElementById('output').textContent = 
+                    `Status: ${response.status}\n\n` +
+                    `Request Data:\n${JSON.stringify(data, null, 2)}\n\n` +
+                    `Response:\n${JSON.stringify(result, null, 2)}`;
+                    
+            } catch (error) {
+                document.getElementById('output').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Form submit handler
+        document.getElementById('create-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            createShortlink();
+        });
+    </script>
+</body>
+</html>

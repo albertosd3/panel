@@ -1278,16 +1278,50 @@ function showNotification(message, type = 'success') {
 
 // Load shortlinks data
 async function loadLinks() {
+    const container = document.getElementById('links-container');
+    if (!container) return;
+    
+    // Show loading state
+    container.innerHTML = `
+        <div class="loading">
+            <div class="loading-spinner"></div>
+            Loading shortlinks...
+        </div>
+    `;
+    
     try {
-        const response = await fetch('/api/links');
-        if (!response.ok) throw new Error('Failed to load links');
+        console.log('Loading links from /api/links...');
+        const response = await fetch('/api/links', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+        
+        console.log('Links response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Links error response:', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+        }
         
         const result = await response.json();
+        console.log('Links result:', result);
+        
         if (result.ok && result.data) {
             displayLinks(result.data);
+        } else {
+            throw new Error(result.message || 'Failed to load links');
         }
     } catch (error) {
         console.error('Load links error:', error);
+        container.innerHTML = `
+            <div class="text-center p-4" style="color: var(--color-danger);">
+                ❌ Failed to load shortlinks: ${error.message}
+                <br><button onclick="loadLinks()" class="btn btn-sm btn-primary" style="margin-top: 8px;">🔄 Retry</button>
+            </div>
+        `;
         showNotification('Failed to load shortlinks', 'error');
     }
 }
@@ -1295,16 +1329,42 @@ async function loadLinks() {
 // Load analytics data
 async function loadAnalytics() {
     try {
-        const response = await fetch(`/api/analytics?period=${currentPeriod || 'week'}`);
-        if (!response.ok) throw new Error('Failed to load analytics');
+        console.log('Loading analytics from /api/analytics...');
+        const response = await fetch(`/api/analytics?period=${currentPeriod || 'week'}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+        
+        console.log('Analytics response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Analytics error response:', errorText);
+            throw new Error(`HTTP ${response.status}`);
+        }
         
         const result = await response.json();
+        console.log('Analytics result:', result);
+        
         if (result.ok && result.data) {
             displayAnalytics(result.data);
+        } else {
+            throw new Error(result.message || 'Failed to load analytics');
         }
     } catch (error) {
         console.error('Load analytics error:', error);
-        showNotification('Failed to load analytics', 'error');
+        // Don't show notification for analytics failure, just log it
+        // Set default values
+        displayAnalytics({
+            overview: {
+                total_links: '-',
+                total_clicks: '-',
+                today_clicks: '-',
+                avg_clicks_per_link: '-'
+            }
+        });
     }
 }
 
@@ -1342,17 +1402,25 @@ function displayLinks(links) {
 
 // Display analytics
 function displayAnalytics(data) {
-    // Update stats cards
+    console.log('Displaying analytics:', data);
+    
+    // Update stats cards - using correct data structure
+    const overview = data.overview || {};
     const elements = {
-        'total-links': data.total_links || 0,
-        'total-clicks': data.total_clicks || 0,
-        'today-clicks': data.today_clicks || 0,
-        'avg-clicks': data.avg_clicks || 0
+        'total-links': overview.total_links || 0,
+        'total-clicks': overview.total_clicks || 0,
+        'today-clicks': overview.today_clicks || 0,
+        'avg-clicks': overview.avg_clicks_per_link || 0
     };
     
     Object.entries(elements).forEach(([id, value]) => {
         const element = document.getElementById(id);
-        if (element) element.textContent = value;
+        if (element) {
+            element.textContent = value;
+            console.log(`Updated ${id} = ${value}`);
+        } else {
+            console.warn(`Element not found: ${id}`);
+        }
     });
     
     // Update charts if present
@@ -1563,92 +1631,178 @@ async function createShortlink() {
     
     // Disable submit button
     submitBtn.disabled = true;
-    submitBtn.textContent = '⏳ Creating...';
+    submitBtn.innerHTML = '<div class="loading-spinner"></div> Creating...';
     
     try {
         const formData = new FormData(form);
         
-        // Convert FormData to JSON
+        // Convert FormData to JSON - FIXED VERSION with better error handling
         const data = {};
         
-        // Get link type
-        const linkType = document.querySelector('input[name="link_type"]:checked').value;
-        data.is_rotator = linkType === 'rotator';
+        // Get link type from radio buttons
+        const linkTypeRadio = document.querySelector('input[name="link_type"]:checked');
+        if (!linkTypeRadio) {
+            throw new Error('Please select link type (Single Link or Link Rotator)');
+        }
+        
+        const linkType = linkTypeRadio.value;
+        data.is_rotator = (linkType === 'rotator');
+        
+        console.log('Form submission - Link type:', linkType, 'Is rotator:', data.is_rotator);
         
         if (data.is_rotator) {
             // Handle rotator data
             data.rotation_type = formData.get('rotation_type') || 'random';
             data.destinations = [];
             
+            // Get all destination inputs
             const destinationItems = document.querySelectorAll('#destinations-container .destination-item');
+            console.log('Found destination items:', destinationItems.length);
+            
+            if (destinationItems.length === 0) {
+                throw new Error('No destination items found. Please add at least one destination.');
+            }
+            
             destinationItems.forEach((item, index) => {
-                const url = item.querySelector(`input[name="destinations[${index}][url]"]`)?.value;
-                const name = item.querySelector(`input[name="destinations[${index}][name]"]`)?.value || '';
-                const weight = item.querySelector(`input[name="destinations[${index}][weight]"]`)?.value || 1;
+                const urlInput = item.querySelector('input[name*="[url]"]');
+                const nameInput = item.querySelector('input[name*="[name]"]');
+                const weightInput = item.querySelector('input[name*="[weight]"]');
                 
-                if (url && url.trim()) {
+                if (!urlInput) {
+                    console.warn(`No URL input found for destination ${index}`);
+                    return;
+                }
+                
+                const url = urlInput.value.trim();
+                const name = nameInput ? nameInput.value.trim() : '';
+                const weight = weightInput ? parseInt(weightInput.value) || 1 : 1;
+                
+                console.log(`Processing destination ${index}:`, {url, name, weight});
+                
+                if (url) {
+                    // Validate URL format
+                    try {
+                        new URL(url.startsWith('http') ? url : 'https://' + url);
+                    } catch (e) {
+                        throw new Error(`Invalid URL format for destination ${index + 1}: ${url}`);
+                    }
+                    
                     data.destinations.push({
-                        url: url.trim(),
-                        name: name.trim(),
-                        weight: parseInt(weight) || 1,
+                        url: url,
+                        name: name || `Destination ${index + 1}`,
+                        weight: weight,
                         active: true
                     });
                 }
             });
             
             if (data.destinations.length === 0) {
-                throw new Error('At least one destination URL is required for rotator');
+                throw new Error('At least one destination URL is required for link rotator');
             }
+            
+            console.log('Final rotator destinations:', data.destinations);
         } else {
             // Handle single destination
-            data.destination = formData.get('destination')?.trim();
-            if (!data.destination) {
-                throw new Error('Destination URL is required');
+            data.destination = formData.get('destination');
+            if (!data.destination || !data.destination.trim()) {
+                throw new Error('Destination URL is required for single link');
             }
+            data.destination = data.destination.trim();
+            
+            // Validate single destination URL
+            try {
+                new URL(data.destination.startsWith('http') ? data.destination : 'https://' + data.destination);
+            } catch (e) {
+                throw new Error(`Invalid URL format: ${data.destination}`);
+            }
+            
+            console.log('Single destination:', data.destination);
         }
         
         // Handle optional slug
-        data.slug = formData.get('slug')?.trim() || '';
+        data.slug = formData.get('slug');
+        if (data.slug) {
+            data.slug = data.slug.trim();
+            // Validate slug format
+            if (data.slug && !/^[a-zA-Z0-9_-]+$/.test(data.slug)) {
+                throw new Error('Custom slug can only contain letters, numbers, hyphens and underscores');
+            }
+        }
+        
+        console.log('Final data being sent to API:', data);
 
+        // Make API request
         const response = await fetch('/api/create', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
             },
             body: JSON.stringify(data)
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        console.log('API Response status:', response.status);
+        console.log('API Response headers:', Object.fromEntries(response.headers.entries()));
+
+        let result;
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            const textResponse = await response.text();
+            console.error('Non-JSON response received:', textResponse);
+            throw new Error('Server returned non-JSON response. Please check server configuration.');
         }
 
-        const result = await response.json();
+        console.log('API Response data:', result);
         
-        if (result.ok) {
+        if (response.ok && result.ok) {
+            // Success!
             showNotification('✅ Shortlink berhasil dibuat!', 'success');
+            
+            // Reset form
             form.reset();
-            toggleLinkType(); // Reset form display
-            loadLinks();
-            loadAnalytics();
+            
+            // Reset form display to single link mode
+            document.querySelector('input[name="link_type"][value="single"]').checked = true;
+            toggleLinkType();
+            
+            // Refresh data
+            await Promise.all([loadLinks(), loadAnalytics()]);
             
             // Show created shortlink info
             if (result.short_url) {
                 setTimeout(() => {
                     showNotification(`🔗 Created: ${result.short_url}`, 'info');
                 }, 500);
+            } else if (result.data && result.data.slug) {
+                setTimeout(() => {
+                    showNotification(`🔗 Created: /${result.data.slug}`, 'info');
+                }, 500);
             }
         } else {
-            throw new Error(result.message || 'Gagal membuat shortlink');
+            // Handle API errors
+            const errorMessage = result.message || 'Failed to create shortlink';
+            throw new Error(errorMessage);
         }
     } catch (error) {
         console.error('Create Shortlink Error:', error);
-        showNotification('❌ Error: ' + error.message, 'error');
+        
+        let errorMessage = error.message;
+        if (errorMessage.includes('ValidationException') || errorMessage.includes('422')) {
+            errorMessage = 'Please check your input data and try again.';
+        } else if (errorMessage.includes('fetch')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+        }
+        
+        showNotification('❌ Error: ' + errorMessage, 'error');
     } finally {
         // Re-enable submit button
         submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
+        submitBtn.innerHTML = originalText;
     }
 }
 

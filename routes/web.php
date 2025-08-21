@@ -60,14 +60,25 @@ Route::middleware('panel.auth')->group(function () {
                 'session_id' => session()->getId()
             ]);
         });
+        
+        // Debug shortlink creation
+        Route::post('/debug/create', function (\Illuminate\Http\Request $request) {
+            return response()->json([
+                'ok' => true,
+                'received_data' => $request->all(),
+                'content_type' => $request->header('Content-Type'),
+                'method' => $request->method(),
+                'json_data' => $request->json()->all(),
+                'is_rotator_bool' => $request->boolean('is_rotator'),
+                'has_destination' => $request->has('destination'),
+                'has_destinations' => $request->has('destinations')
+            ]);
+        });
 
         // Stopbot configuration API endpoints
         Route::post('/stopbot/config', [ShortlinkController::class, 'saveStopbotConfig'])->name('panel.api.stopbot.config');
         Route::post('/stopbot/test', [ShortlinkController::class, 'testStopbotApi'])->name('panel.api.stopbot.test');
         Route::get('/stopbot/stats', [ShortlinkController::class, 'getStopbotStats'])->name('panel.api.stopbot.stats');
-
-        // Real-time IP statistics API
-        Route::get('/ip-stats', [ShortlinkController::class, 'getIpStats'])->name('panel.api.ip.stats');
     });
 });
 
@@ -75,6 +86,11 @@ Route::middleware('panel.auth')->group(function () {
 Route::get('/health-check', function () {
     return response('OK', 200)->header('Content-Type', 'text/plain');
 })->name('health-check');
+
+// Debug route for testing shortlink creation
+Route::get('/debug/shortlink', function () {
+    return view('debug.shortlink');
+})->name('debug.shortlink');
 
 // JS human verification endpoint used by public redirect challenge
 Route::post('/_human_verify', [ShortlinkController::class, 'verifyHuman'])

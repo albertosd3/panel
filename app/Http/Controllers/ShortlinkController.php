@@ -256,26 +256,41 @@ class ShortlinkController extends Controller
     public function store(Request $request)
     {
         try {
+            // Debug incoming request
+            \Log::info('Shortlink creation request', [
+                'method' => $request->method(),
+                'content_type' => $request->header('Content-Type'),
+                'is_rotator' => $request->boolean('is_rotator'),
+                'has_destination' => $request->has('destination'),
+                'has_destinations' => $request->has('destinations'),
+                'destinations_count' => is_array($request->get('destinations')) ? count($request->get('destinations')) : 0,
+                'all_data' => $request->all()
+            ]);
+
+            $isRotator = $request->boolean('is_rotator');
+            
             $validationRules = [
                 'slug' => ['nullable','alpha_dash','min:3','max:64','unique:shortlinks,slug'],
                 'is_rotator' => ['boolean'],
-                'rotation_type' => ['nullable','in:random,sequential,weighted'],
-                'destinations' => ['nullable','array','min:1'],
-                'destinations.*.url' => ['required','url','max:2048'],
-                'destinations.*.weight' => ['nullable','integer','min:1','max:100'],
-                'destinations.*.active' => ['boolean'],
-                'destinations.*.name' => ['nullable','string','max:255'],
             ];
 
-            // For single destination
-            if (!$request->boolean('is_rotator')) {
+            if ($isRotator) {
+                // Rotator validation
+                $validationRules['rotation_type'] = ['nullable','in:random,sequential,weighted'];
+                $validationRules['destinations'] = ['required','array','min:1'];
+                $validationRules['destinations.*.url'] = ['required','url','max:2048'];
+                $validationRules['destinations.*.weight'] = ['nullable','integer','min:1','max:100'];
+                $validationRules['destinations.*.active'] = ['nullable','boolean'];
+                $validationRules['destinations.*.name'] = ['nullable','string','max:255'];
+            } else {
+                // Single destination validation
                 $validationRules['destination'] = ['required','url','max:2048'];
             }
 
             $data = $request->validate($validationRules);
 
-            // Auto-add https:// to destinations
-            if ($request->boolean('is_rotator') && !empty($data['destinations'])) {
+            // Process and normalize destination URLs
+            if ($isRotator && !empty($data['destinations'])) {
                 foreach ($data['destinations'] as $key => $dest) {
                     $url = $dest['url'] ?? '';
                     if ($url && !preg_match('/^https?:\/\//i', $url)) {
@@ -286,7 +301,7 @@ class ShortlinkController extends Controller
                     $data['destinations'][$key]['weight'] = $dest['weight'] ?? 1;
                     $data['destinations'][$key]['name'] = $dest['name'] ?? '';
                 }
-            } else {
+            } elseif (!$isRotator) {
                 // Auto-add https:// for single destination
                 $destination = $data['destination'] ?? '';
                 if ($destination && !preg_match('/^https?:\/\//i', $destination)) {
@@ -314,12 +329,12 @@ class ShortlinkController extends Controller
                     'created_by' => 'panel',
                     'created_at_formatted' => now()->format('Y-m-d H:i:s'),
                 ],
-                'is_rotator' => $request->boolean('is_rotator'),
+                'is_rotator' => $isRotator,
                 'rotation_type' => $data['rotation_type'] ?? 'random',
                 'current_index' => 0,
             ];
 
-            if ($request->boolean('is_rotator')) {
+            if ($isRotator) {
                 $linkData['destination'] = $data['destinations'][0]['url'] ?? ''; // fallback destination
                 $linkData['destinations'] = $data['destinations'];
             } else {
