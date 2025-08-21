@@ -275,7 +275,25 @@ class ShortlinkController extends Controller
             ]);
 
             $isRotator = $request->boolean('is_rotator');
-            
+
+            // Pre-normalize URLs so validation accepts inputs without scheme
+            $normalized = $request->all();
+            if ($isRotator && isset($normalized['destinations']) && is_array($normalized['destinations'])) {
+                foreach ($normalized['destinations'] as $idx => $dest) {
+                    $rawUrl = (string) ($dest['url'] ?? '');
+                    if ($rawUrl !== '' && !preg_match('/^https?:\/\//i', $rawUrl)) {
+                        $normalized['destinations'][$idx]['url'] = 'https://' . ltrim($rawUrl, '/');
+                    }
+                }
+            } elseif (!$isRotator && isset($normalized['destination'])) {
+                $rawUrl = (string) $normalized['destination'];
+                if ($rawUrl !== '' && !preg_match('/^https?:\/\//i', $rawUrl)) {
+                    $normalized['destination'] = 'https://' . ltrim($rawUrl, '/');
+                }
+            }
+            // Replace request inputs with normalized values before validation
+            $request->replace($normalized);
+
             $validationRules = [
                 'slug' => ['nullable','alpha_dash','min:3','max:64','unique:shortlinks,slug'],
                 'is_rotator' => ['boolean'],
@@ -296,24 +314,12 @@ class ShortlinkController extends Controller
 
             $data = $request->validate($validationRules);
 
-            // Process and normalize destination URLs
+            // Ensure defaults for rotator metadata after validation
             if ($isRotator && !empty($data['destinations'])) {
                 foreach ($data['destinations'] as $key => $dest) {
-                    $url = $dest['url'] ?? '';
-                    if ($url && !preg_match('/^https?:\/\//i', $url)) {
-                        $data['destinations'][$key]['url'] = 'https://' . ltrim($url, '/');
-                    }
-                    // Set defaults
                     $data['destinations'][$key]['active'] = $dest['active'] ?? true;
                     $data['destinations'][$key]['weight'] = $dest['weight'] ?? 1;
                     $data['destinations'][$key]['name'] = $dest['name'] ?? '';
-                }
-            } elseif (!$isRotator) {
-                // Auto-add https:// for single destination
-                $destination = $data['destination'] ?? '';
-                if ($destination && !preg_match('/^https?:\/\//i', $destination)) {
-                    $destination = 'https://' . ltrim($destination, '/');
-                    $data['destination'] = $destination;
                 }
             }
 

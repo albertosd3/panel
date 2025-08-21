@@ -702,6 +702,7 @@
 
     .btn-danger:hover {
         background: #dc2626;
+    }
     .rotator-badge {
         display: inline-flex;
         align-items: center;
@@ -1553,7 +1554,6 @@ function setupEventListeners() {
                 showNotification('Error: ' + e.message, 'error');
             }
         });
-    }
     }
 }
 
