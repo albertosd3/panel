@@ -1411,8 +1411,11 @@ function displayLinks(links) {
                 </div>
             </div>
             <div class="link-actions">
-                <button onclick="copyLink('${link.slug}')" class="btn btn-sm">📋 Copy</button>
-                <button onclick="deleteLink('${link.slug}')" class="btn btn-sm btn-danger">🗑️</button>
+                <button onclick="openVisitors('${link.slug}')" class="btn btn-sm" title="View IPs">👁️ IPs</button>
+                <button onclick="openEditModal('${link.slug}', ${link.is_rotator ? 'true' : 'false'})" class="btn btn-sm" title="Edit destination(s)">✏️ Edit</button>
+                <button onclick="resetViews('${link.slug}')" class="btn btn-sm" title="Reset views">🔄 Reset</button>
+                <button onclick="copyLink('${link.slug}')" class="btn btn-sm" title="Copy link">📋 Copy</button>
+                <button onclick="deleteLink('${link.slug}')" class="btn btn-sm btn-danger" title="Delete">🗑️</button>
             </div>
         </div>
     `).join('');
@@ -1488,6 +1491,165 @@ async function deleteLink(slug) {
         console.error('Delete error:', error);
         showNotification('Failed to delete shortlink', 'error');
     }
+}
+
+// Open visitors IPs page
+function openVisitors(slug) {
+    window.location.href = `/panel/shortlinks/${slug}/visitors`;
+}
+
+// Reset views for a specific shortlink
+async function resetViews(slug) {
+    if (!confirm(`Reset visitor count for /${slug}?`)) return;
+    try {
+        const apiUrl = `/api/reset-visitors/${slug}`;
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            }
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.message || 'Failed to reset');
+        showNotification(result.message || 'Views reset', 'success');
+        loadLinks();
+        loadAnalytics();
+    } catch (e) {
+        showNotification('Error: ' + e.message, 'error');
+    }
+}
+
+// Edit destinations/destination via modal
+function openEditModal(slug, isRotator) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.innerHTML = `
+        <div class="modal-header">
+            <h3>Edit ${isRotator ? 'Rotator' : 'Destination'}</h3>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✖</button>
+        </div>
+        <form id="edit-form">
+            <div id="edit-body" style="padding:12px;">Loading...</div>
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="document.querySelector('.modal-overlay').remove()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>`;
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+
+    if (isRotator) {
+        fetch(`/api/rotator/${slug}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.ok) throw new Error(res.message || 'Failed');
+                const data = res.data || {};
+                const dests = (data.destinations || []).map((d) => `
+                    <div class="destination-item">
+                        <div class="destination-inputs">
+                            <input type="url" class="form-input edit-url" value="${d.url || ''}" required>
+                            <input type="text" class="form-input edit-name" value="${d.name || ''}" placeholder="Name (optional)">
+                            <input type="number" class="form-input edit-weight" value="${d.weight || 1}" min="1" max="100">
+                            <button type="button" class="btn-remove-destination" onclick="this.closest('.destination-item').remove()">🗑️</button>
+                        </div>
+                    </div>`).join('');
+                document.getElementById('edit-body').innerHTML = `
+                    <div class="form-group">
+                        <label class="form-label">Rotation Type</label>
+                        <select id="edit-rotation-type" class="form-input">
+                            <option value="random" ${data.rotation_type === 'random' ? 'selected' : ''}>Random</option>
+                            <option value="sequential" ${data.rotation_type === 'sequential' ? 'selected' : ''}>Sequential</option>
+                            <option value="weighted" ${data.rotation_type === 'weighted' ? 'selected' : ''}>Weighted</option>
+                        </select>
+                    </div>
+                    <div id="edit-dests">${dests ||('<div class=\'text-muted\'>No destinations</div>')}</div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addEditDestination()">+ Add Destination</button>
+                `;
+                const form = document.getElementById('edit-form');
+                form.onsubmit = async (e) => {
+                    e.preventDefault();
+                    const nodes = Array.from(document.querySelectorAll('#edit-dests .destination-item'));
+                    const destinations = nodes.map((n) => ({
+                        url: n.querySelector('.edit-url').value.trim(),
+                        name: n.querySelector('.edit-name').value.trim(),
+                        weight: parseInt(n.querySelector('.edit-weight').value || '1', 10) || 1,
+                        active: true
+                    })).filter(d => d.url);
+                    try {
+                        const resp = await fetch(`/api/rotator/${slug}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ is_rotator: true, rotation_type: document.getElementById('edit-rotation-type').value, destinations })
+                        });
+                        const json = await resp.json();
+                        if (!resp.ok || !json.ok) throw new Error(json.message || 'Failed to save');
+                        showNotification('Saved', 'success');
+                        document.querySelector('.modal-overlay').remove();
+                        loadLinks();
+                    } catch (err) {
+                        showNotification('Error: ' + err.message, 'error');
+                    }
+                };
+            })
+            .catch(e => {
+                document.getElementById('edit-body').textContent = 'Failed to load: ' + e.message;
+            });
+    } else {
+        document.getElementById('edit-body').innerHTML = `
+            <div class="form-group">
+                <label class="form-label">Destination URL</label>
+                <input id="edit-single-url" class="form-input" type="url" required>
+            </div>`;
+        const card = Array.from(document.querySelectorAll('.link-item')).find(d => d.querySelector('.link-url strong').textContent === `/${slug}`);
+        if (card) {
+            const cur = card.querySelector('.link-destination')?.textContent?.trim();
+            if (cur) document.getElementById('edit-single-url').value = cur;
+        }
+        const form = document.getElementById('edit-form');
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const destination = document.getElementById('edit-single-url').value.trim();
+            try {
+                const resp = await fetch(`/panel/shortlinks/${slug}/destinations`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ is_rotator: false, destination })
+                });
+                const json = await resp.json();
+                if (!resp.ok || !json.ok) throw new Error(json.message || 'Failed to save');
+                showNotification('Saved', 'success');
+                document.querySelector('.modal-overlay').remove();
+                loadLinks();
+            } catch (err) {
+                showNotification('Error: ' + err.message, 'error');
+            }
+        };
+    }
+}
+
+function addEditDestination() {
+    const container = document.getElementById('edit-dests');
+    const html = `
+        <div class="destination-item">
+            <div class="destination-inputs">
+                <input type="url" class="form-input edit-url" placeholder="https://example.com" required>
+                <input type="text" class="form-input edit-name" placeholder="Name (optional)">
+                <input type="number" class="form-input edit-weight" value="1" min="1" max="100">
+                <button type="button" class="btn-remove-destination" onclick="this.closest('.destination-item').remove()">🗑️</button>
+            </div>
+        </div>`;
+    container.insertAdjacentHTML('beforeend', html);
 }
 
 // Initialize dashboard
