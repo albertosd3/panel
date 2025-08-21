@@ -1450,6 +1450,81 @@ function displayAnalytics(data) {
     if (data.chart_data) {
         updateCharts(data.chart_data);
     }
+
+    // Render sidebars: countries, devices, browsers, top links
+    try {
+        const escapeHtml = (str) => String(str == null ? '' : str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+        // Top countries
+        const countries = Array.isArray(data.top_countries) ? data.top_countries : [];
+        const countriesList = document.getElementById('countries-list');
+        if (countriesList) {
+            if (countries.length === 0) {
+                countriesList.innerHTML = '<li class="sidebar-item"><div class="text-muted">No data</div></li>';
+            } else {
+                countriesList.innerHTML = countries.map(c => `
+                    <li class="sidebar-item" style="display:flex;justify-content:space-between;padding:8px 12px;">
+                        <span>${escapeHtml(c.country || 'Unknown')}</span>
+                        <span>${c.count ?? 0}</span>
+                    </li>`).join('');
+            }
+        }
+
+        // Device stats
+        const devices = Array.isArray(data.device_stats) ? data.device_stats : [];
+        const devicesList = document.getElementById('devices-list');
+        if (devicesList) {
+            if (devices.length === 0) {
+                devicesList.innerHTML = '<li class="sidebar-item"><div class="text-muted">No data</div></li>';
+            } else {
+                devicesList.innerHTML = devices.map(d => `
+                    <li class="sidebar-item" style="display:flex;justify-content:space-between;padding:8px 12px;">
+                        <span>${escapeHtml(d.device || 'Unknown')}</span>
+                        <span>${d.count ?? 0}</span>
+                    </li>`).join('');
+            }
+        }
+
+        // Browser stats
+        const browsers = Array.isArray(data.browser_stats) ? data.browser_stats : [];
+        const browsersList = document.getElementById('browsers-list');
+        if (browsersList) {
+            if (browsers.length === 0) {
+                browsersList.innerHTML = '<li class="sidebar-item"><div class="text-muted">No data</div></li>';
+            } else {
+                browsersList.innerHTML = browsers.map(b => `
+                    <li class="sidebar-item" style="display:flex;justify-content:space-between;padding:8px 12px;">
+                        <span>${escapeHtml(b.browser || 'Unknown')}</span>
+                        <span>${b.count ?? 0}</span>
+                    </li>`).join('');
+            }
+        }
+
+        // Top/Popular links
+        const topLinks = Array.isArray(data.top_links) ? data.top_links : [];
+        const popularList = document.getElementById('popular-links');
+        if (popularList) {
+            if (topLinks.length === 0) {
+                popularList.innerHTML = '<li class="sidebar-item"><div class="text-muted">No data</div></li>';
+            } else {
+                popularList.innerHTML = topLinks.slice(0, 10).map(l => `
+                    <li class="sidebar-item" style="padding:8px 12px;">
+                        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+                            <a class="link-slug" href="/${escapeHtml(l.slug)}" target="_blank">/${escapeHtml(l.slug)}</a>
+                            <span style="font-size:12px;color:var(--color-text-muted);">${l.clicks ?? 0} clicks</span>
+                        </div>
+                        <div class="link-destination" style="margin-top:4px;">${escapeHtml(l.destination || '')}</div>
+                    </li>`).join('');
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to render sidebar lists:', e);
+    }
 }
 
 // Copy link to clipboard
