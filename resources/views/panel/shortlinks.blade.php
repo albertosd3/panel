@@ -1130,6 +1130,17 @@
                                 </div>
                             </div>
                             <button type="button" class="btn btn-secondary btn-sm" onclick="addDestination()">+ Add Destination</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="margin-left:8px;" onclick="toggleBulkAdd()">📥 Bulk Add</button>
+                            <div id="bulk-add-container" style="display:none; margin-top:12px;">
+                                <div style="margin-bottom:8px; color: var(--color-text-muted); font-size:12px;">One URL per line. You can paste dozens or hundreds of links at once.</div>
+                                <textarea id="bulk-add-textarea" class="form-input" rows="6" placeholder="https://example.com/a\nhttps://example.com/b\nhttps://example.com/c"></textarea>
+                                <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+                                    <label style="font-size:12px; color: var(--color-text-secondary);">Default weight</label>
+                                    <input id="bulk-add-weight" type="number" value="1" min="1" max="100" class="form-input" style="width:90px;">
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="bulkAddDestinations()">Add Links</button>
+                                    <span id="bulk-add-feedback" style="font-size:12px; color: var(--color-text-muted);"></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1479,9 +1490,6 @@ async function deleteLink(slug) {
     }
 }
 
-// Global variables
-let currentPeriod = 'week';
-
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
     initializeTime();
@@ -1630,6 +1638,57 @@ function removeDestination(button) {
                 }
             });
         });
+    }
+}
+
+// Toggle bulk add panel
+function toggleBulkAdd() {
+    const el = document.getElementById('bulk-add-container');
+    el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
+}
+
+// Append many destinations from textarea
+function bulkAddDestinations() {
+    const textarea = document.getElementById('bulk-add-textarea');
+    const weightInput = document.getElementById('bulk-add-weight');
+    const feedback = document.getElementById('bulk-add-feedback');
+    if (!textarea) return;
+
+    const lines = (textarea.value || '').split(/\r?\n/).map(v => v.trim()).filter(v => v !== '');
+    const defaultWeight = Math.max(1, Math.min(100, parseInt(weightInput.value || '1', 10)));
+    if (lines.length === 0) {
+        feedback.textContent = 'No URLs detected.';
+        return;
+    }
+
+    let added = 0;
+    lines.forEach((val, i) => {
+        try {
+            // Pre-normalize for quick validation
+            const url = val.startsWith('http') ? val : ('https://' + val.replace(/^\/+/, ''));
+            new URL(url);
+
+            const container = document.getElementById('destinations-container');
+            const index = container.children.length;
+            const html = `
+                <div class="destination-item">
+                    <div class="destination-inputs">
+                        <input type="url" name="destinations[${index}][url]" class="form-input destination-url" value="${url}" required>
+                        <input type="text" name="destinations[${index}][name]" class="form-input destination-name" value="${'Link ' + (index + 1)}">
+                        <input type="number" name="destinations[${index}][weight]" class="form-input destination-weight" value="${defaultWeight}" min="1" max="100">
+                        <button type="button" class="btn-remove-destination" onclick="removeDestination(this)" title="Remove destination">🗑️</button>
+                    </div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', html);
+            added++;
+        } catch (e) {
+            // skip invalid line
+        }
+    });
+
+    feedback.textContent = `${added} link(s) added.`;
+    if (added > 0) {
+        textarea.value = '';
     }
 }
 
