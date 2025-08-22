@@ -434,57 +434,131 @@ class ShortlinkController extends Controller
     protected function recordHit(int $shortlinkId, array $payload): void
     {
         try {
-            \Log::info('recordHit called', ['shortlink_id' => $shortlinkId, 'payload' => $payload]);
+            \Log::info('=== RECORD HIT START ===', [
+                'shortlink_id' => $shortlinkId, 
+                'payload' => $payload,
+                'timestamp' => now()->toISOString()
+            ]);
             
+            // Validate required fields
+            if (empty($payload['ip'])) {
+                \Log::error('Missing IP address in payload', ['payload' => $payload]);
+                throw new \Exception('IP address is required');
+            }
+
             DB::transaction(function () use ($shortlinkId, $payload) {
                 // Always create event record
-                $event = ShortlinkEvent::create(array_merge($payload, [
+                $eventData = array_merge($payload, [
                     'shortlink_id' => $shortlinkId,
                     'clicked_at' => now(),
-                ]));
-                \Log::info('ShortlinkEvent created', ['event_id' => $event->id]);
+                ]);
+                
+                \Log::info('Creating ShortlinkEvent with data', ['event_data' => $eventData]);
+                
+                $event = ShortlinkEvent::create($eventData);
+                \Log::info('ShortlinkEvent created successfully', [
+                    'event_id' => $event->id,
+                    'shortlink_id' => $shortlinkId,
+                    'ip' => $payload['ip']
+                ]);
 
                 // Increment clicks only if counting bots OR this is not a bot
                 $countBots = (bool) config('panel.count_bots', false);
                 $isBot = (bool) ($payload['is_bot'] ?? false);
                 
                 if ($countBots || !$isBot) {
-                    Shortlink::where('id', $shortlinkId)->update([
+                    $updated = Shortlink::where('id', $shortlinkId)->update([
                         'clicks' => DB::raw('clicks + 1')
                     ]);
-                    \Log::info('Clicks incremented for shortlink', ['shortlink_id' => $shortlinkId]);
+                    \Log::info('Clicks incremented for shortlink', [
+                        'shortlink_id' => $shortlinkId,
+                        'rows_updated' => $updated
+                    ]);
+                } else {
+                    \Log::info('Skipping click increment for bot', [
+                        'shortlink_id' => $shortlinkId,
+                        'is_bot' => $isBot,
+                        'count_bots' => $countBots
+                    ]);
                 }
 
                 // Record visitor summary (upsert per IP)
                 try {
-                    $ip = $payload['ip'] ?? null;
-                    if ($ip) {
-                        $visitor = ShortlinkVisitor::firstOrNew([
-                            'shortlink_id' => $shortlinkId,
+                    $ip = $payload['ip'];
+                    \Log::info('Processing visitor record for IP', ['ip' => $ip]);
+                    
+                    $visitor = ShortlinkVisitor::firstOrNew([
+                        'shortlink_id' => $shortlinkId,
+                        'ip' => $ip,
+                    ]);
+
+                    if (!$visitor->exists) {
+                        \Log::info('Creating new visitor record', ['ip' => $ip, 'shortlink_id' => $shortlinkId]);
+                        $visitor->first_seen = now();
+                        $visitor->hits = 0;
+                        $visitor->country = $payload['country'] ?? null;
+                        $visitor->city = $payload['city'] ?? null;
+                        $visitor->asn = $payload['asn'] ?? null;
+                        $visitor->org = $payload['org'] ?? null;
+                    } else {
+                        \Log::info('Updating existing visitor record', [
+                            'visitor_id' => $visitor->id,
                             'ip' => $ip,
+                            'current_hits' => $visitor->hits
                         ]);
-
-                        if (!$visitor->exists) {
-                            $visitor->first_seen = now();
-                            $visitor->hits = 0;
-                        }
-
-                        $visitor->hits = ($visitor->hits ?? 0) + 1;
-                        $visitor->last_seen = now();
-                        $visitor->is_bot = $isBot;
-                        $visitor->save();
-                        \Log::info('ShortlinkVisitor updated', ['visitor_id' => $visitor->id, 'ip' => $ip, 'hits' => $visitor->hits]);
                     }
+
+                    $visitor->hits = ($visitor->hits ?? 0) + 1;
+                    $visitor->last_seen = now();
+                    $visitor->is_bot = $isBot;
+                    
+                    // Update geo info if not already set
+                    if (empty($visitor->country) && !empty($payload['country'])) {
+                        $visitor->country = $payload['country'];
+                    }
+                    if (empty($visitor->city) && !empty($payload['city'])) {
+                        $visitor->city = $payload['city'];
+                    }
+                    if (empty($visitor->asn) && !empty($payload['asn'])) {
+                        $visitor->asn = $payload['asn'];
+                    }
+                    if (empty($visitor->org) && !empty($payload['org'])) {
+                        $visitor->org = $payload['org'];
+                    }
+                    
+                    $saved = $visitor->save();
+                    \Log::info('ShortlinkVisitor saved successfully', [
+                        'visitor_id' => $visitor->id,
+                        'ip' => $ip,
+                        'hits' => $visitor->hits,
+                        'saved' => $saved,
+                        'is_bot' => $visitor->is_bot
+                    ]);
+                    
                 } catch (\Throwable $e) {
-                    \Log::error('Failed to upsert shortlink visitor: ' . $e->getMessage(), ['shortlink_id' => $shortlinkId, 'payload' => $payload]);
+                    \Log::error('Failed to upsert shortlink visitor', [
+                        'error' => $e->getMessage(),
+                        'shortlink_id' => $shortlinkId,
+                        'ip' => $payload['ip'],
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    // Don't re-throw - continue with the process
                 }
             });
             
-            \Log::info('recordHit completed successfully', ['shortlink_id' => $shortlinkId]);
-        } catch (\Throwable $e) {
-            \Log::error('Failed to record hit: ' . $e->getMessage(), [
+            \Log::info('=== RECORD HIT COMPLETED SUCCESSFULLY ===', [
                 'shortlink_id' => $shortlinkId,
-                'payload' => $payload
+                'ip' => $payload['ip'],
+                'timestamp' => now()->toISOString()
+            ]);
+            
+        } catch (\Throwable $e) {
+            \Log::error('=== RECORD HIT FAILED ===', [
+                'error' => $e->getMessage(),
+                'shortlink_id' => $shortlinkId,
+                'payload' => $payload,
+                'trace' => $e->getTraceAsString(),
+                'timestamp' => now()->toISOString()
             ]);
             throw $e; // Re-throw for debugging
         }
@@ -497,10 +571,21 @@ class ShortlinkController extends Controller
             abort(404, 'Shortlink not found');
         }
 
-        $ip = $request->headers->get('CF-Connecting-IP') ?: $request->ip();
+        // Get real IP address with proper fallback
+        $ip = $this->getRealIp($request);
+        
+        \Log::info('=== SHORTLINK REDIRECT START ===', [
+            'slug' => $slug,
+            'shortlink_id' => $link->id,
+            'ip' => $ip,
+            'user_agent' => $request->userAgent(),
+            'headers' => $request->headers->all(),
+            'timestamp' => now()->toISOString()
+        ]);
         
         // Check if IP is blocked
         if (BlockedIp::where('ip', $ip)->exists()) {
+            \Log::warning('IP blocked from accessing shortlink', ['ip' => $ip, 'slug' => $slug]);
             abort(403, 'IP blocked');
         }
 
@@ -561,17 +646,69 @@ class ShortlinkController extends Controller
             'is_bot' => $isBot,
         ];
 
+        \Log::info('Prepared payload for recording hit', [
+            'payload' => $payload,
+            'shortlink_id' => $link->id
+        ]);
+
         try {
             \Log::info('About to call recordHit', ['shortlink_id' => $link->id, 'payload' => $payload]);
             $this->recordHit($link->id, $payload);
             \Log::info('recordHit completed in redirect method');
         } catch (\Throwable $e) {
-            \Log::error('Recording hit failed, but continuing redirect: ' . $e->getMessage());
+            \Log::error('Recording hit failed, but continuing redirect', [
+                'error' => $e->getMessage(),
+                'shortlink_id' => $link->id,
+                'ip' => $ip,
+                'trace' => $e->getTraceAsString()
+            ]);
         }
 
         // Redirect to destination
         $destination = $link->getNextDestination();
+        
+        \Log::info('=== SHORTLINK REDIRECT COMPLETED ===', [
+            'slug' => $slug,
+            'shortlink_id' => $link->id,
+            'ip' => $ip,
+            'destination' => $destination,
+            'is_bot' => $isBot,
+            'timestamp' => now()->toISOString()
+        ]);
+        
         return redirect()->away($destination, 302);
+    }
+
+    /**
+     * Get real IP address considering CloudFlare and other proxies
+     */
+    protected function getRealIp(Request $request): string
+    {
+        // Check CloudFlare connecting IP
+        if ($cfIp = $request->header('CF-Connecting-IP')) {
+            \Log::info('Using CloudFlare IP', ['cf_ip' => $cfIp]);
+            return $cfIp;
+        }
+
+        // Check other proxy headers
+        if ($clientIp = $request->header('HTTP_CLIENT_IP')) {
+            if (filter_var($clientIp, FILTER_VALIDATE_IP)) {
+                \Log::info('Using HTTP_CLIENT_IP', ['client_ip' => $clientIp]);
+                return $clientIp;
+            }
+        }
+
+        if ($forwardedIp = $request->header('HTTP_X_FORWARDED_FOR')) {
+            if (filter_var($forwardedIp, FILTER_VALIDATE_IP)) {
+                \Log::info('Using HTTP_X_FORWARDED_FOR', ['forwarded_ip' => $forwardedIp]);
+                return $forwardedIp;
+            }
+        }
+
+        // Fallback to default IP
+        $defaultIp = $request->ip();
+        \Log::info('Using default IP', ['default_ip' => $defaultIp]);
+        return $defaultIp;
     }
 
     /**
