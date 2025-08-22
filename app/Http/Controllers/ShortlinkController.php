@@ -434,12 +434,15 @@ class ShortlinkController extends Controller
     protected function recordHit(int $shortlinkId, array $payload): void
     {
         try {
+            \Log::info('recordHit called', ['shortlink_id' => $shortlinkId, 'payload' => $payload]);
+            
             DB::transaction(function () use ($shortlinkId, $payload) {
                 // Always create event record
-                ShortlinkEvent::create(array_merge($payload, [
+                $event = ShortlinkEvent::create(array_merge($payload, [
                     'shortlink_id' => $shortlinkId,
                     'clicked_at' => now(),
                 ]));
+                \Log::info('ShortlinkEvent created', ['event_id' => $event->id]);
 
                 // Increment clicks only if counting bots OR this is not a bot
                 $countBots = (bool) config('panel.count_bots', false);
@@ -449,6 +452,7 @@ class ShortlinkController extends Controller
                     Shortlink::where('id', $shortlinkId)->update([
                         'clicks' => DB::raw('clicks + 1')
                     ]);
+                    \Log::info('Clicks incremented for shortlink', ['shortlink_id' => $shortlinkId]);
                 }
 
                 // Record visitor summary (upsert per IP)
@@ -469,11 +473,14 @@ class ShortlinkController extends Controller
                         $visitor->last_seen = now();
                         $visitor->is_bot = $isBot;
                         $visitor->save();
+                        \Log::info('ShortlinkVisitor updated', ['visitor_id' => $visitor->id, 'ip' => $ip, 'hits' => $visitor->hits]);
                     }
                 } catch (\Throwable $e) {
                     \Log::error('Failed to upsert shortlink visitor: ' . $e->getMessage(), ['shortlink_id' => $shortlinkId, 'payload' => $payload]);
                 }
             });
+            
+            \Log::info('recordHit completed successfully', ['shortlink_id' => $shortlinkId]);
         } catch (\Throwable $e) {
             \Log::error('Failed to record hit: ' . $e->getMessage(), [
                 'shortlink_id' => $shortlinkId,
@@ -555,7 +562,9 @@ class ShortlinkController extends Controller
         ];
 
         try {
+            \Log::info('About to call recordHit', ['shortlink_id' => $link->id, 'payload' => $payload]);
             $this->recordHit($link->id, $payload);
+            \Log::info('recordHit completed in redirect method');
         } catch (\Throwable $e) {
             \Log::error('Recording hit failed, but continuing redirect: ' . $e->getMessage());
         }
