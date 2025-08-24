@@ -14,7 +14,7 @@ Route::get('/', function () {
 
 // Panel auth routes
 Route::get('/panel/login', [PanelAuthController::class, 'showLogin'])->name('panel.login');
-Route::post('/panel/login', [PanelAuthController::class, 'verify'])
+Route::post('/panel/verify', [PanelAuthController::class, 'verify'])
     ->name('panel.verify')
     ->middleware('throttle:5,1');
 
