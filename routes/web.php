@@ -38,7 +38,6 @@ Route::middleware('panel.auth')->group(function () {
     Route::get('/panel/stopbot', [ShortlinkController::class, 'stopbotConfig'])->name('panel.stopbot');
 
     Route::post('/panel/logout', [PanelAuthController::class, 'logout'])->name('panel.logout');
-    Route::post('/logout', [PanelAuthController::class, 'logout'])->name('logout');
 });
 
 // API routes for AJAX calls (outside panel.auth middleware)

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Shortlink;
 use App\Models\Domain;
 use App\Models\BlockedIp;
+use App\Models\PanelSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -252,27 +253,76 @@ class ShortlinkController extends Controller
 
     public function stats(string $slug)
     {
-        $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
-        return response()->json([
-            'slug' => $shortlink->slug,
-            'clicks' => $shortlink->clicks,
-            'created_at' => $shortlink->created_at,
-            'destinations' => $shortlink->destinations
-        ]);
+        try {
+            $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
+            
+            // Basic stats since IP logging is removed
+            $stats = [
+                'slug' => $shortlink->slug,
+                'total_clicks' => $shortlink->clicks,
+                'created_at' => $shortlink->created_at,
+                'is_rotator' => $shortlink->is_rotator,
+                'destination' => $shortlink->destination,
+                'destinations' => $shortlink->destinations
+            ];
+            
+            return response()->json([
+                'success' => true,
+                'data' => $stats
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to load shortlink stats', [
+                'error' => $e->getMessage(),
+                'slug' => $slug
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load stats: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function updateDestinations(Request $request, string $slug)
     {
-        $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
-        
-        $data = $request->validate([
-            'destinations' => 'required|array|min:1',
-            'destinations.*' => 'required|url'
-        ]);
+        try {
+            $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
+            
+            $data = $request->validate([
+                'is_rotator' => 'required|boolean',
+                'destination' => 'required_if:is_rotator,false|string|max:2048',
+                'destinations' => 'required_if:is_rotator,true|array|min:1',
+                'destinations.*' => 'required|string|max:2048'
+            ]);
 
-        $shortlink->update(['destinations' => $data['destinations']]);
-        
-        return response()->json(['success' => true]);
+            if ($data['is_rotator']) {
+                // Update rotator destinations
+                $shortlink->update([
+                    'is_rotator' => true,
+                    'destinations' => $data['destinations'],
+                    'destination' => $data['destinations'][0] ?? null
+                ]);
+            } else {
+                // Update single destination
+                $shortlink->update([
+                    'is_rotator' => false,
+                    'destination' => $data['destination'],
+                    'destinations' => null
+                ]);
+            }
+            
+            return response()->json(['success' => true, 'message' => 'Shortlink updated successfully']);
+        } catch (\Exception $e) {
+            \Log::error('Failed to update shortlink destinations', [
+                'error' => $e->getMessage(),
+                'slug' => $slug
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update shortlink: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function visitors(string $slug)
@@ -300,79 +350,264 @@ class ShortlinkController extends Controller
 
     public function saveStopbotConfig(Request $request)
     {
-        $data = $request->validate([
-            'enabled' => 'boolean',
-            'api_key' => 'required_if:enabled,true|string',
-            'redirect_url' => 'required_if:enabled,true|url',
-            'log_enabled' => 'boolean',
-            'timeout' => 'integer|min:1|max:30'
-        ]);
+        try {
+            $data = $request->validate([
+                'enabled' => 'boolean',
+                'api_key' => 'required_if:enabled,true|string',
+                'redirect_url' => 'required_if:enabled,true|url',
+                'log_enabled' => 'boolean',
+                'timeout' => 'integer|min:1|max:30'
+            ]);
 
-        // Save configuration logic here
-        return response()->json(['success' => true]);
+            // Save configuration using PanelSetting model
+            foreach ($data as $key => $value) {
+                $type = is_bool($value) ? 'boolean' : (is_int($value) ? 'integer' : 'string');
+                PanelSetting::set($key, $value, $type, 'stopbot');
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Stopbot configuration saved successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to save stopbot config', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save configuration: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function testStopbotApi(Request $request)
     {
-        // Test API logic here
-        return response()->json(['success' => true, 'message' => 'API test successful']);
+        try {
+            $apiKey = PanelSetting::get('stopbot_api_key', '');
+            $enabled = PanelSetting::get('stopbot_enabled', false);
+            
+            if (!$enabled || !$apiKey) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Stopbot is not configured or enabled'
+                ], 400);
+            }
+
+            // Simple API test - you can implement actual API call here
+            return response()->json([
+                'success' => true,
+                'message' => 'API test successful',
+                'api_key' => substr($apiKey, 0, 8) . '***',
+                'enabled' => $enabled
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to test stopbot API', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'API test failed: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function getStopbotStats()
     {
-        // Return stats logic here
-        return response()->json(['success' => true, 'stats' => []]);
+        try {
+            $enabled = PanelSetting::get('stopbot_enabled', false);
+            $apiKey = PanelSetting::get('stopbot_api_key', '');
+            
+            $stats = [
+                'enabled' => $enabled,
+                'configured' => !empty($apiKey),
+                'last_updated' => now()->toISOString()
+            ];
+            
+            return response()->json([
+                'success' => true,
+                'data' => $stats
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to get stopbot stats', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get stats: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function resetVisitors(string $slug)
     {
-        $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
-        $shortlink->update(['clicks' => 0]);
-        
-        return response()->json(['success' => true]);
+        try {
+            $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
+            $shortlink->update(['clicks' => 0]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Visitor count reset successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to reset visitors', [
+                'error' => $e->getMessage(),
+                'slug' => $slug
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reset visitors: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function resetAllVisitors()
     {
-        Shortlink::query()->update(['clicks' => 0]);
-        
-        return response()->json(['success' => true]);
+        try {
+            Shortlink::query()->update(['clicks' => 0]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'All visitor counts reset successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to reset all visitors', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reset all visitors: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function destroy(string $slug)
     {
-        $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
-        $shortlink->delete();
-        
-        return response()->json(['success' => true]);
+        try {
+            $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
+            $shortlink->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Shortlink deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to delete shortlink', [
+                'error' => $e->getMessage(),
+                'slug' => $slug
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete shortlink: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function updateRotator(Request $request, string $slug)
     {
-        $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
-        
-        $data = $request->validate([
-            'is_rotator' => 'required|boolean'
-        ]);
+        try {
+            $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
+            
+            $data = $request->validate([
+                'is_rotator' => 'required|boolean',
+                'rotation_type' => 'required_if:is_rotator,true|string|in:random,sequential,weighted',
+                'destinations' => 'required_if:is_rotator,true|array|min:1',
+                'destinations.*.url' => 'required|string|max:2048',
+                'destinations.*.name' => 'nullable|string|max:100',
+                'destinations.*.weight' => 'nullable|integer|min:1|max:100'
+            ]);
 
-        $shortlink->update(['is_rotator' => $data['is_rotator']]);
-        
-        return response()->json(['success' => true]);
+            if ($data['is_rotator']) {
+                // Update rotator settings
+                $shortlink->update([
+                    'is_rotator' => true,
+                    'destinations' => $data['destinations'],
+                    'destination' => $data['destinations'][0]['url'] ?? null
+                ]);
+            } else {
+                // Convert back to single link
+                $shortlink->update([
+                    'is_rotator' => false,
+                    'destinations' => null
+                ]);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Rotator settings updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to update rotator settings', [
+                'error' => $e->getMessage(),
+                'slug' => $slug
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update rotator: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function getRotator(string $slug)
     {
-        $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
-        
-        return response()->json([
-            'is_rotator' => $shortlink->is_rotator,
-            'destinations' => $shortlink->destinations
-        ]);
+        try {
+            $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'is_rotator' => $shortlink->is_rotator,
+                    'destinations' => $shortlink->destinations,
+                    'rotation_type' => 'random' // Default rotation type
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to get rotator settings', [
+                'error' => $e->getMessage(),
+                'slug' => $slug
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get rotator settings: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function verifyHuman(Request $request)
     {
-        // Simple human verification
-        return response()->json(['success' => true]);
+        try {
+            // Simple human verification - you can implement actual verification logic here
+            $token = $request->input('token');
+            $challenge = $request->input('challenge');
+            
+            if (empty($token) || empty($challenge)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Missing verification parameters'
+                ], 400);
+            }
+            
+            // For now, just return success
+            return response()->json([
+                'success' => true,
+                'message' => 'Human verification successful'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Human verification failed', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification failed: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

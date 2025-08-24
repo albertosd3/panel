@@ -983,10 +983,10 @@
                 <button class="btn btn-primary" onclick="refreshData()">
                     🔄 Refresh
                 </button>
-                <form method="POST" action="/logout" style="display: inline;">
-                    @csrf
-                    <button type="submit" class="btn btn-danger">🚪 Logout</button>
-                </form>
+                                 <form method="POST" action="{{ route('panel.logout') }}" style="display: inline;">
+                     @csrf
+                     <button type="submit" class="btn btn-danger">🚪 Logout</button>
+                 </form>
             </div>
         </div>
     </div>
@@ -1424,7 +1424,7 @@ function displayLinks(links) {
                 </div>
             </div>
             <div class="link-actions">
-                <button onclick="openVisitors('${link.slug}')" class="btn btn-sm" title="View IPs">👁️ IPs</button>
+                                 <button onclick="openVisitors('${link.slug}')" class="btn btn-sm" title="View Visitors">👁️ Visitors</button>
                 <button onclick="openEditModal('${link.slug}', ${link.is_rotator ? 'true' : 'false'})" class="btn btn-sm" title="Edit destination(s)">✏️ Edit</button>
                 <button onclick="resetViews('${link.slug}')" class="btn btn-sm" title="Reset views">🔄 Reset</button>
                 <button onclick="copyLink('${link.slug}')" class="btn btn-sm" title="Copy link">📋 Copy</button>
@@ -1605,7 +1605,7 @@ async function deleteLink(slug) {
         if (!response.ok) throw new Error('Failed to delete');
         
         const result = await response.json();
-        if (result.ok) {
+        if (result.success) {
             showNotification('Shortlink deleted successfully', 'success');
             loadLinks();
             loadAnalytics();
@@ -1636,7 +1636,7 @@ async function resetViews(slug) {
             }
         });
         const result = await response.json();
-        if (!response.ok || !result.ok) throw new Error(result.message || 'Failed to reset');
+        if (!response.ok || !result.success) throw new Error(result.message || 'Failed to reset');
         showNotification(result.message || 'Views reset', 'success');
         loadLinks();
         loadAnalytics();
@@ -1703,24 +1703,24 @@ function openEditModal(slug, isRotator) {
                         weight: parseInt(n.querySelector('.edit-weight').value || '1', 10) || 1,
                         active: true
                     })).filter(d => d.url);
-                    try {
-                        const resp = await fetch(`/api/rotator/${slug}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({ is_rotator: true, rotation_type: document.getElementById('edit-rotation-type').value, destinations })
-                        });
-                        const json = await resp.json();
-                        if (!resp.ok || !json.ok) throw new Error(json.message || 'Failed to save');
-                        showNotification('Saved', 'success');
-                        document.querySelector('.modal-overlay').remove();
-                        loadLinks();
-                    } catch (err) {
-                        showNotification('Error: ' + err.message, 'error');
-                    }
+                        try {
+        const resp = await fetch(`/api/rotator/${slug}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ is_rotator: true, rotation_type: document.getElementById('edit-rotation-type').value, destinations })
+        });
+        const json = await resp.json();
+        if (!resp.ok || !json.success) throw new Error(json.message || 'Failed to save');
+        showNotification('Saved', 'success');
+        document.querySelector('.modal-overlay').remove();
+        loadLinks();
+    } catch (err) {
+        showNotification('Error: ' + err.message, 'error');
+    }
                 };
             })
             .catch(e => {
@@ -1752,7 +1752,7 @@ function openEditModal(slug, isRotator) {
                     body: JSON.stringify({ is_rotator: false, destination })
                 });
                 const json = await resp.json();
-                if (!resp.ok || !json.ok) throw new Error(json.message || 'Failed to save');
+                if (!resp.ok || !json.success) throw new Error(json.message || 'Failed to save');
                 showNotification('Saved', 'success');
                 document.querySelector('.modal-overlay').remove();
                 loadLinks();
@@ -1845,7 +1845,7 @@ function setupEventListeners() {
                     }
                 });
                 const json = await resp.json();
-                if (json?.ok) {
+                if (json?.success) {
                     showNotification(json.message || 'All visitor counts reset', 'success');
                     loadLinks();
                     loadAnalytics();
@@ -2303,7 +2303,7 @@ async function toggleStopbot() {
 
         const result = await response.json();
         
-        if (result.ok) {
+        if (result.success) {
             showNotification(`Stopbot ${newStatus ? 'enabled' : 'disabled'} successfully!`, 'success');
             // Reload page to update status displays
             setTimeout(() => location.reload(), 1000);
