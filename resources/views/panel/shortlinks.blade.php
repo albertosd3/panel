@@ -1266,16 +1266,26 @@
 let currentPeriod = 'week';
 let analyticsChart = null;
 
-// Notification system
+// Notification system - FIXED VERSION
 function showNotification(message, type = 'success') {
+    console.log('Showing notification:', message, type);
+    
     // Remove existing notifications
     const existingNotifications = document.querySelectorAll('.notification');
     existingNotifications.forEach(notification => notification.remove());
     
     // Create notification element
     const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
+    notification.className = `notification notification-${type}`;
+    
+    // Add notification content with icon
+    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${icon}</span>
+            <span class="notification-message">${message}</span>
+        </div>
+    `;
     
     // Add to page
     document.body.appendChild(notification);
@@ -1807,11 +1817,18 @@ function setupEventListeners() {
         });
     });
     
-    // Create form
-    document.getElementById('create-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        createShortlink();
-    });
+    // Create form - FIXED VERSION
+    const createForm = document.getElementById('create-form');
+    if (createForm) {
+        console.log('Create form found, adding event listener');
+        createForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('Form submitted, calling createShortlink()');
+            createShortlink();
+        });
+    } else {
+        console.error('Create form not found!');
+    }
 
     // Reset all visitors button
     const resetAllBtn = document.getElementById('resetAllVisitorsBtn');
@@ -2054,11 +2071,26 @@ function bulkAddDestinations() {
     }
 }
 
-// Create shortlink function
+// Create shortlink function - FIXED VERSION
 async function createShortlink() {
+    console.log('createShortlink() function called');
+    
     const form = document.getElementById('create-form');
+    if (!form) {
+        console.error('Create form not found!');
+        showNotification('❌ Form tidak ditemukan!', 'error');
+        return;
+    }
+    
     const submitBtn = form.querySelector('button[type="submit"]');
+    if (!submitBtn) {
+        console.error('Submit button not found!');
+        showNotification('❌ Submit button tidak ditemukan!', 'error');
+        return;
+    }
+    
     const originalText = submitBtn.textContent;
+    console.log('Submit button found:', submitBtn);
     
     // Disable submit button
     submitBtn.disabled = true;
@@ -2296,5 +2328,19 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateCurrentTime, 60000);
     updateCurrentTime();
 });
+
+// Fix: Add missing updateCurrentTime function
+function updateCurrentTime() {
+    const timeElement = document.getElementById('current-time');
+    if (timeElement) {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('id-ID', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        timeElement.textContent = `• ${timeString}`;
+    }
+}
 </script>
 @endsection
