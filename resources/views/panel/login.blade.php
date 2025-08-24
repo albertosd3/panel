@@ -26,6 +26,26 @@
     .prompt { font-family: var(--font-mono); color: var(--color-text-secondary); font-size: 12px; margin-bottom: 8px; }
     .prompt .path { color: var(--color-primary); }
 
+    /* Flash Messages */
+    .flash-message { 
+        padding: 12px 16px; 
+        border-radius: 8px; 
+        margin-bottom: 18px; 
+        font-family: var(--font-mono); 
+        font-size: 12px; 
+        border: 1px solid;
+    }
+    .flash-success { 
+        background: rgba(34,197,94,0.1); 
+        border-color: rgba(34,197,94,0.3); 
+        color: #22c55e; 
+    }
+    .flash-error { 
+        background: rgba(239,68,68,0.1); 
+        border-color: rgba(239,68,68,0.3); 
+        color: #ef4444; 
+    }
+
     /* Segmented PIN */
     .pin-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 8px 0 18px; }
     .pin-box { width: 100%; height: 56px; text-align: center; font-family: var(--font-mono); font-size: 20px; font-weight: 700; background: var(--color-bg-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border); border-radius: 10px; transition: all .2s ease; caret-color: transparent; }
@@ -65,8 +85,23 @@
                     </div>
                 </div>
 
+                {{-- Flash Messages --}}
+                @if (session('success'))
+                    <div class="flash-message flash-success">
+                        ✅ {{ session('success') }}
+                    </div>
+                @endif
+
+                @if (session('error'))
+                    <div class="flash-message flash-error">
+                        ❌ {{ session('error') }}
+                    </div>
+                @endif
+
                 @if ($errors->any())
-                    <div class="alert alert-error"><strong>Access Denied:</strong> {{ $errors->first() }}</div>
+                    <div class="flash-message flash-error">
+                        ❌ {{ $errors->first() }}
+                    </div>
                 @endif
 
                 <div class="prompt">$ <span class="path">auth</span> --mode=pin --digits=6</div>
