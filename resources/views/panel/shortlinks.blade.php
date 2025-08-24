@@ -1306,7 +1306,7 @@ async function loadLinks() {
     
     try {
         console.log('Loading links from API...');
-        const apiUrl = window.location.protocol + '//' + window.location.host + '/api/links';
+        const apiUrl = window.location.protocol + '//' + window.location.host + '/panel/shortlinks/list';
         console.log('API URL:', apiUrl);
         
         const response = await fetch(apiUrl, {
@@ -1328,7 +1328,7 @@ async function loadLinks() {
         const result = await response.json();
         console.log('Links result:', result);
         
-        if (result.ok && result.data) {
+        if (result.success && result.data) {
             displayLinks(result.data);
         } else {
             throw new Error(result.message || 'Failed to load links');
@@ -1349,7 +1349,7 @@ async function loadLinks() {
 async function loadAnalytics() {
     try {
         console.log('Loading analytics...');
-        const apiUrl = window.location.protocol + '//' + window.location.host + `/api/analytics?period=${currentPeriod || 'week'}`;
+        const apiUrl = window.location.protocol + '//' + window.location.host + '/panel/analytics';
         console.log('Analytics API URL:', apiUrl);
         
         const response = await fetch(apiUrl, {
@@ -1371,7 +1371,7 @@ async function loadAnalytics() {
         const result = await response.json();
         console.log('Analytics result:', result);
         
-        if (result.ok && result.data) {
+        if (result.success && result.data) {
             displayAnalytics(result.data);
         } else {
             throw new Error(result.message || 'Failed to load analytics');
@@ -2163,7 +2163,7 @@ async function createShortlink() {
         console.log('Final data being sent to API:', data);
 
         // Make API request with better error handling for production
-        const apiUrl = window.location.protocol + '//' + window.location.host + '/api/create';
+        const apiUrl = window.location.protocol + '//' + window.location.host + '/panel/shortlinks';
         console.log('Making request to:', apiUrl);
         
         const response = await fetch(apiUrl, {
@@ -2193,7 +2193,7 @@ async function createShortlink() {
 
         console.log('API Response data:', result);
         
-        if (response.ok && result.ok) {
+        if (response.ok && result.success) {
             // Success!
             showNotification('✅ Shortlink berhasil dibuat!', 'success');
             
@@ -2208,13 +2208,9 @@ async function createShortlink() {
             await Promise.all([loadLinks(), loadAnalytics()]);
             
             // Show created shortlink info
-            if (result.short_url) {
+            if (result.shortlink && result.shortlink.slug) {
                 setTimeout(() => {
-                    showNotification(`🔗 Created: ${result.short_url}`, 'info');
-                }, 500);
-            } else if (result.data && result.data.slug) {
-                setTimeout(() => {
-                    showNotification(`🔗 Created: /${result.data.slug}`, 'info');
+                    showNotification(`🔗 Created: /${result.shortlink.slug}`, 'info');
                 }, 500);
             }
         } else {
