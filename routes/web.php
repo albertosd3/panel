@@ -69,10 +69,8 @@ Route::post('/_human_verify', [ShortlinkController::class, 'verifyHuman'])
     ->withoutMiddleware([ValidateCsrfToken::class]);
 
 // Public redirect route (keep at bottom, after other routes)
-// Apply stopbot middleware to block bots before they access shortlinks
 Route::get('/{slug}', [ShortlinkController::class, 'redirect'])
     ->where('slug', '[A-Za-z0-9_-]+')
-    ->middleware(['stopbot'])
     ->withoutMiddleware([
         StartSession::class,
         AuthenticateSession::class,

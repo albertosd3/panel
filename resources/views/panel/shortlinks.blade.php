@@ -1655,7 +1655,7 @@ function openEditModal(slug, isRotator) {
         fetch(`/api/rotator/${slug}`)
             .then(r => r.json())
             .then(res => {
-                if (!res.ok) throw new Error(res.message || 'Failed');
+                if (!res.success) throw new Error(res.message || 'Failed');
                 const data = res.data || {};
                 const dests = (data.destinations || []).map((d) => `
                     <div class="destination-item">

@@ -215,13 +215,53 @@ class ShortlinkController extends Controller
 
     protected function getDestination(Shortlink $shortlink): string
     {
-        if (!$shortlink->is_rotator || count($shortlink->destinations) <= 1) {
-            return $shortlink->destinations[0];
+        // When not a rotator, always return single destination
+        if (!$shortlink->is_rotator) {
+            return $shortlink->destination;
         }
 
-        // Simple rotation logic
-        $index = $shortlink->clicks % count($shortlink->destinations);
-        return $shortlink->destinations[$index];
+        $destinations = $shortlink->destinations ?? [];
+
+        // Normalize destinations to an array of objects with 'url'
+        $normalized = [];
+        foreach ($destinations as $d) {
+            if (is_string($d)) {
+                $normalized[] = ['url' => $d, 'weight' => 1];
+            } elseif (is_array($d) && !empty($d['url'])) {
+                $normalized[] = [
+                    'url' => $d['url'],
+                    'weight' => isset($d['weight']) ? max(1, (int)$d['weight']) : 1,
+                ];
+            }
+        }
+
+        if (count($normalized) === 0) {
+            // Fallback to single destination when data malformed
+            return $shortlink->destination;
+        }
+
+        if (count($normalized) === 1) {
+            return $normalized[0]['url'];
+        }
+
+        // Rotation strategy: simple weighted random if weights provided, else round-robin by clicks
+        $totalWeight = array_sum(array_map(fn($x) => $x['weight'] ?? 1, $normalized));
+        if ($totalWeight > count($normalized)) {
+            // Weighted random
+            $rand = mt_rand(1, max(1, (int)$totalWeight));
+            $acc = 0;
+            foreach ($normalized as $entry) {
+                $acc += $entry['weight'] ?? 1;
+                if ($rand <= $acc) {
+                    return $entry['url'];
+                }
+            }
+            return $normalized[0]['url'];
+        }
+
+        // Round-robin
+        $index = $shortlink->clicks % count($normalized);
+        return $normalized[$index]['url'];
     }
 
     public function analytics()
