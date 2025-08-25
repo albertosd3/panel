@@ -49,7 +49,9 @@ class ShortlinkController extends Controller
                 'slug' => 'nullable|string|max:50|unique:shortlinks,slug',
                 'destination' => 'nullable|string|max:2048',
                 'destinations' => 'nullable|array|min:1',
-                'destinations.*' => 'nullable|string|max:2048',
+                'destinations.*.url' => 'required|string|max:2048',
+                'destinations.*.name' => 'nullable|string|max:100',
+                'destinations.*.weight' => 'nullable|integer|min:1|max:100',
                 'is_rotator' => 'boolean',
                 'domain_id' => 'nullable|exists:domains,id'
             ]);
@@ -66,15 +68,21 @@ class ShortlinkController extends Controller
                     ], 422);
                 }
                 
-                // Normalize URLs
+                // Normalize URLs and extract data
                 $destinations = [];
                 foreach ($data['destinations'] as $dest) {
-                    if (!empty($dest)) {
-                        $url = $dest;
+                    if (!empty($dest['url'])) {
+                        $url = $dest['url'];
                         if (!preg_match('/^https?:\/\//i', $url)) {
                             $url = 'https://' . ltrim($url, '/');
                         }
-                        $destinations[] = $url;
+                        
+                        $destinations[] = [
+                            'url' => $url,
+                            'name' => $dest['name'] ?? 'Destination',
+                            'weight' => $dest['weight'] ?? 1,
+                            'active' => true
+                        ];
                     }
                 }
                 
@@ -85,7 +93,7 @@ class ShortlinkController extends Controller
                     ], 422);
                 }
                 
-                $destination = $destinations[0]; // Fallback destination
+                $destination = $destinations[0]['url']; // Fallback destination
             } else {
                 // Single link
                 if (empty($data['destination'])) {
