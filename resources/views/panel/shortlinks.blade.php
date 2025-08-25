@@ -1268,8 +1268,6 @@ let analyticsChart = null;
 
 // Notification system - FIXED VERSION
 function showNotification(message, type = 'success') {
-    console.log('Showing notification:', message, type);
-    
     // Remove existing notifications
     const existingNotifications = document.querySelectorAll('.notification');
     existingNotifications.forEach(notification => notification.remove());
@@ -1315,9 +1313,7 @@ async function loadLinks() {
     `;
     
     try {
-        console.log('Loading links from API...');
         const apiUrl = window.location.protocol + '//' + window.location.host + '/panel/shortlinks/list';
-        console.log('API URL:', apiUrl);
         
         const response = await fetch(apiUrl, {
             headers: {
@@ -1327,8 +1323,6 @@ async function loadLinks() {
             }
         });
         
-        console.log('Links response status:', response.status);
-        
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Links error response:', errorText);
@@ -1336,7 +1330,6 @@ async function loadLinks() {
         }
         
         const result = await response.json();
-        console.log('Links result:', result);
         
         if (result.success && result.data) {
             displayLinks(result.data);
@@ -1358,9 +1351,7 @@ async function loadLinks() {
 // Load analytics data
 async function loadAnalytics() {
     try {
-        console.log('Loading analytics...');
         const apiUrl = window.location.protocol + '//' + window.location.host + '/panel/analytics';
-        console.log('Analytics API URL:', apiUrl);
         
         const response = await fetch(apiUrl, {
             headers: {
@@ -1370,8 +1361,6 @@ async function loadAnalytics() {
             }
         });
         
-        console.log('Analytics response status:', response.status);
-        
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Analytics error response:', errorText);
@@ -1379,7 +1368,6 @@ async function loadAnalytics() {
         }
         
         const result = await response.json();
-        console.log('Analytics result:', result);
         
         if (result.success && result.data) {
             displayAnalytics(result.data);
@@ -1438,8 +1426,6 @@ function displayLinks(links) {
 
 // Display analytics
 function displayAnalytics(data) {
-    console.log('Displaying analytics:', data);
-    
     // Update stats cards - using correct data structure
     const overview = data.overview || {};
     const elements = {
@@ -1453,7 +1439,6 @@ function displayAnalytics(data) {
         const element = document.getElementById(id);
         if (element) {
             element.textContent = value;
-            console.log(`Updated ${id} = ${value}`);
         } else {
             console.warn(`Element not found: ${id}`);
         }
@@ -1820,8 +1805,7 @@ function setupEventListeners() {
     // Create form - FIXED VERSION
     const createForm = document.getElementById('create-form');
     if (createForm) {
-        console.log('Create form found, adding event listener');
-        createForm.addEventListener('submit', function(e) {
+                createForm.addEventListener('submit', function(e) {
             e.preventDefault();
             console.log('Form submitted, calling createShortlink()');
             createShortlink();
@@ -1868,8 +1852,6 @@ function refreshData() {
 
 // Update charts with Chart.js
 function updateCharts(chartData) {
-    console.log('Chart data received:', chartData);
-    
     const canvas = document.getElementById('analytics-chart');
     if (!canvas) {
         console.warn('Chart canvas not found');
@@ -2073,8 +2055,6 @@ function bulkAddDestinations() {
 
 // Create shortlink function - FIXED VERSION
 async function createShortlink() {
-    console.log('createShortlink() function called');
-    
     const form = document.getElementById('create-form');
     if (!form) {
         console.error('Create form not found!');
@@ -2090,7 +2070,6 @@ async function createShortlink() {
     }
     
     const originalText = submitBtn.textContent;
-    console.log('Submit button found:', submitBtn);
     
     // Disable submit button
     submitBtn.disabled = true;
@@ -2111,18 +2090,14 @@ async function createShortlink() {
         const linkType = linkTypeRadio.value;
         data.is_rotator = (linkType === 'rotator');
         
-        console.log('Form submission - Link type:', linkType, 'Is rotator:', data.is_rotator);
-        
-        if (data.is_rotator) {
+                if (data.is_rotator) {
             // Handle rotator data
             data.rotation_type = formData.get('rotation_type') || 'random';
             data.destinations = [];
             
             // Get all destination inputs
             const destinationItems = document.querySelectorAll('#destinations-container .destination-item');
-            console.log('Found destination items:', destinationItems.length);
-            
-            if (destinationItems.length === 0) {
+                        if (destinationItems.length === 0) {
                 throw new Error('No destination items found. Please add at least one destination.');
             }
             
@@ -2140,9 +2115,7 @@ async function createShortlink() {
                 const name = nameInput ? nameInput.value.trim() : '';
                 const weight = weightInput ? parseInt(weightInput.value) || 1 : 1;
                 
-                console.log(`Processing destination ${index}:`, {url, name, weight});
-                
-                if (url) {
+                                if (url) {
                     // Validate URL format
                     try {
                         new URL(url.startsWith('http') ? url : 'https://' + url);
@@ -2163,8 +2136,7 @@ async function createShortlink() {
                 throw new Error('At least one destination URL is required for link rotator');
             }
             
-            console.log('Final rotator destinations:', data.destinations);
-        } else {
+                    } else {
             // Handle single destination
             data.destination = formData.get('destination');
             if (!data.destination || !data.destination.trim()) {
@@ -2179,8 +2151,7 @@ async function createShortlink() {
                 throw new Error(`Invalid URL format: ${data.destination}`);
             }
             
-            console.log('Single destination:', data.destination);
-        }
+                    }
         
         // Handle optional slug
         data.slug = formData.get('slug');
@@ -2192,13 +2163,9 @@ async function createShortlink() {
             }
         }
         
-        console.log('Final data being sent to API:', data);
-
-        // Make API request with better error handling for production
+                // Make API request with better error handling for production
         const apiUrl = window.location.protocol + '//' + window.location.host + '/panel/shortlinks';
-        console.log('Making request to:', apiUrl);
-        
-        const response = await fetch(apiUrl, {
+                const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2209,8 +2176,7 @@ async function createShortlink() {
             body: JSON.stringify(data)
         });
 
-        console.log('API Response status:', response.status);
-        console.log('API Response headers:', Object.fromEntries(response.headers.entries()));
+                console.log('API Response headers:', Object.fromEntries(response.headers.entries()));
 
         let result;
         const contentType = response.headers.get('content-type');
@@ -2223,9 +2189,7 @@ async function createShortlink() {
             throw new Error('Server returned non-JSON response. Please check server configuration.');
         }
 
-        console.log('API Response data:', result);
-        
-        if (response.ok && result.success) {
+                if (response.ok && result.success) {
             // Success!
             showNotification('✅ Shortlink berhasil dibuat!', 'success');
             

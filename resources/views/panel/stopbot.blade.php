@@ -105,9 +105,7 @@ document.getElementById('stopbotForm').addEventListener('submit', async (e) => {
         });
 
         const result = await response.json();
-        console.log('Save stopbot response', result);
-        
-        if (result.ok) {
+                if (result.ok) {
             alert('✅ Tersimpan. Status: ' + (result.data.enabled ? 'Enabled' : 'Disabled'));
             location.reload();
         } else {
@@ -141,17 +139,12 @@ document.getElementById('testBtn').addEventListener('click', async () => {
             body: JSON.stringify({ api_key: apiKey })
         });
 
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-        
-        if (!response.ok) {
+                        if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
         const responseText = await response.text();
-        console.log('Response text:', responseText);
-        
-        let result;
+                let result;
         try {
             result = JSON.parse(responseText);
         } catch (e) {
