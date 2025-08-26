@@ -23,8 +23,8 @@ class ShortlinkController extends Controller
             $shortlinks = Shortlink::with('domain')
                 ->orderBy('created_at', 'desc')
                 ->get(['id', 'slug', 'destination', 'destinations', 'clicks', 'active', 'is_rotator', 'created_at', 'domain_id']);
-            
-            return response()->json([
+        
+        return response()->json([
                 'success' => true,
                 'data' => $shortlinks
             ]);
@@ -197,6 +197,8 @@ class ShortlinkController extends Controller
         
         // Increment click count
         $link->increment('clicks');
+        // Record lightweight analytics (country/device/browser + daily counts)
+        $this->recordAnalytics($request);
         
         // Redirect to destination
         return redirect($destination);
@@ -218,6 +220,60 @@ class ShortlinkController extends Controller
             }
         }
         return false;
+    }
+
+    /**
+     * Record minimal analytics into PanelSetting store (no per-visitor logs).
+     */
+    protected function recordAnalytics(Request $request): void
+    {
+        try {
+            $country = strtoupper((string) ($request->header('CF-IPCountry') ?? '')) ?: 'UNKNOWN';
+            $ua = (string) ($request->header('User-Agent') ?? '');
+
+            // Infer device
+            $uaLower = strtolower($ua);
+            $device = (str_contains($uaLower, 'mobile') || str_contains($uaLower, 'iphone') || str_contains($uaLower, 'android'))
+                ? 'Mobile' : 'Desktop';
+
+            // Infer browser (very simple)
+            $browser = 'Other';
+            if (str_contains($uaLower, 'chrome') && !str_contains($uaLower, 'edg')) { $browser = 'Chrome'; }
+            elseif (str_contains($uaLower, 'edg')) { $browser = 'Edge'; }
+            elseif (str_contains($uaLower, 'firefox')) { $browser = 'Firefox'; }
+            elseif (str_contains($uaLower, 'safari') && !str_contains($uaLower, 'chrome')) { $browser = 'Safari'; }
+
+            // Load current aggregates
+            $countries = PanelSetting::get('analytics_countries', []);
+            $devices = PanelSetting::get('analytics_devices', []);
+            $browsers = PanelSetting::get('analytics_browsers', []);
+            $daily = PanelSetting::get('analytics_daily', []);
+
+            if (!is_array($countries)) { $countries = []; }
+            if (!is_array($devices)) { $devices = []; }
+            if (!is_array($browsers)) { $browsers = []; }
+            if (!is_array($daily)) { $daily = []; }
+
+            $countries[$country] = ($countries[$country] ?? 0) + 1;
+            $devices[$device] = ($devices[$device] ?? 0) + 1;
+            $browsers[$browser] = ($browsers[$browser] ?? 0) + 1;
+
+            $today = now()->format('Y-m-d');
+            $daily[$today] = ($daily[$today] ?? 0) + 1;
+
+            // Keep only last 60 days
+            ksort($daily);
+            if (count($daily) > 60) {
+                $daily = array_slice($daily, -60, null, true);
+            }
+
+            PanelSetting::set('analytics_countries', $countries, 'json', 'analytics');
+            PanelSetting::set('analytics_devices', $devices, 'json', 'analytics');
+            PanelSetting::set('analytics_browsers', $browsers, 'json', 'analytics');
+            PanelSetting::set('analytics_daily', $daily, 'json', 'analytics');
+        } catch (\Throwable $e) {
+            \Log::warning('recordAnalytics failed', ['error' => $e->getMessage()]);
+        }
     }
 
     protected function getRealIp(Request $request): string
@@ -310,13 +366,34 @@ class ShortlinkController extends Controller
                     ];
                 });
 
-            // Minimal chart data (no per-day logs available). Provide last 7 days with zeros
+            // Build chart data from lightweight daily counts
+            $daily = PanelSetting::get('analytics_daily', []);
+            if (!is_array($daily)) { $daily = []; }
             $labels = [];
             $values = [];
             for ($i = 6; $i >= 0; $i--) {
-                $labels[] = now()->subDays($i)->format('Y-m-d');
-                $values[] = 0; // no detailed daily data
+                $day = now()->subDays($i)->format('Y-m-d');
+                $labels[] = $day;
+                $values[] = (int) ($daily[$day] ?? 0);
             }
+
+            // Build aggregates for sidebars
+            $countriesAgg = PanelSetting::get('analytics_countries', []);
+            $devicesAgg = PanelSetting::get('analytics_devices', []);
+            $browsersAgg = PanelSetting::get('analytics_browsers', []);
+            if (!is_array($countriesAgg)) { $countriesAgg = []; }
+            if (!is_array($devicesAgg)) { $devicesAgg = []; }
+            if (!is_array($browsersAgg)) { $browsersAgg = []; }
+
+            $topCountries = collect($countriesAgg)
+                ->map(fn($v, $k) => ['country' => $k, 'count' => (int) $v])
+                ->sortByDesc('count')->values()->take(10);
+            $deviceTypes = collect($devicesAgg)
+                ->map(fn($v, $k) => ['device' => $k, 'count' => (int) $v])
+                ->sortByDesc('count')->values()->take(10);
+            $topBrowsers = collect($browsersAgg)
+                ->map(fn($v, $k) => ['browser' => $k, 'count' => (int) $v])
+                ->sortByDesc('count')->values()->take(10);
 
             return response()->json([
                 'success' => true,
@@ -330,10 +407,9 @@ class ShortlinkController extends Controller
                         'labels' => $labels,
                         'values' => $values,
                     ],
-                    // No IP/device/browser tracking; return empty arrays to keep UI stable
-                    'top_countries' => [],
-                    'device_types' => [],
-                    'top_browsers' => [],
+                    'top_countries' => $topCountries,
+                    'device_types' => $deviceTypes,
+                    'top_browsers' => $topBrowsers,
                     'popular_links' => $topShortlinks,
                 ],
             ]);
@@ -452,18 +528,35 @@ class ShortlinkController extends Controller
         try {
             $data = $request->validate([
                 'enabled' => 'boolean',
-                'api_key' => 'required_if:enabled,true|string',
-                'redirect_url' => 'required_if:enabled,true|url',
+                'api_key' => 'nullable|string',
+                'redirect_url' => 'nullable|url',
                 'log_enabled' => 'boolean',
-                'timeout' => 'integer|min:1|max:30'
+                'timeout' => 'nullable|integer|min:1|max:30'
             ]);
 
-            // Save configuration using PanelSetting model
-            foreach ($data as $key => $value) {
+            // Normalize keys to consistent names used across the app
+            $normalized = [];
+            if (array_key_exists('enabled', $data)) {
+                $normalized['stopbot_enabled'] = (bool) $data['enabled'];
+            }
+            if (array_key_exists('api_key', $data)) {
+                $normalized['stopbot_api_key'] = (string) $data['api_key'];
+            }
+            if (array_key_exists('redirect_url', $data)) {
+                $normalized['stopbot_redirect_url'] = (string) $data['redirect_url'];
+            }
+            if (array_key_exists('log_enabled', $data)) {
+                $normalized['stopbot_log_enabled'] = (bool) $data['log_enabled'];
+            }
+            if (array_key_exists('timeout', $data)) {
+                $normalized['stopbot_timeout'] = (int) $data['timeout'];
+            }
+
+            foreach ($normalized as $key => $value) {
                 $type = is_bool($value) ? 'boolean' : (is_int($value) ? 'integer' : 'string');
                 PanelSetting::set($key, $value, $type, 'stopbot');
             }
-
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Stopbot configuration saved successfully'
@@ -576,7 +669,7 @@ class ShortlinkController extends Controller
             \Log::error('Failed to reset all visitors', [
                 'error' => $e->getMessage()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to reset all visitors: ' . $e->getMessage()
@@ -611,7 +704,7 @@ class ShortlinkController extends Controller
     {
         try {
             $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
-            
+
             $data = $request->validate([
                 'is_rotator' => 'required|boolean',
                 'rotation_type' => 'required_if:is_rotator,true|string|in:random,sequential,weighted',
@@ -657,7 +750,7 @@ class ShortlinkController extends Controller
     {
         try {
             $shortlink = Shortlink::where('slug', $slug)->firstOrFail();
-            
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -694,7 +787,7 @@ class ShortlinkController extends Controller
             }
             
             // For now, just return success
-            return response()->json([
+                return response()->json([
                 'success' => true,
                 'message' => 'Human verification successful'
             ]);
