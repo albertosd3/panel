@@ -577,21 +577,21 @@ class ShortlinkController extends Controller
     {
         try {
             $apiKey = PanelSetting::get('stopbot_api_key', '');
-            $enabled = PanelSetting::get('stopbot_enabled', false);
-            
-            if (!$enabled || !$apiKey) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Stopbot is not configured or enabled'
-                ], 400);
-            }
+            $enabled = (bool) PanelSetting::get('stopbot_enabled', false);
 
-            // Simple API test - you can implement actual API call here
+            // Always return 200 with a clear status so the UI doesn't show a browser error
+            $payload = [
+                'enabled' => $enabled,
+                'configured' => !empty($apiKey),
+                'api_key' => $apiKey ? substr($apiKey, 0, 8) . '***' : null,
+                'message' => $enabled
+                    ? (!empty($apiKey) ? 'Stopbot is enabled and configured.' : 'Stopbot enabled but API key is missing.')
+                    : 'Stopbot is currently disabled.'
+            ];
+
             return response()->json([
                 'success' => true,
-                'message' => 'API test successful',
-                'api_key' => substr($apiKey, 0, 8) . '***',
-                'enabled' => $enabled
+                'data' => $payload
             ]);
         } catch (\Exception $e) {
             \Log::error('Failed to test stopbot API', [
