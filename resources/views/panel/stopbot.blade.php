@@ -105,8 +105,9 @@ document.getElementById('stopbotForm').addEventListener('submit', async (e) => {
         });
 
         const result = await response.json();
-                if (result.ok) {
-            alert('✅ Tersimpan. Status: ' + (result.data.enabled ? 'Enabled' : 'Disabled'));
+        if (result.success) {
+            const data = result.data || {};
+            alert('✅ Tersimpan. Status: ' + (data.enabled ? 'Enabled' : 'Disabled'));
             location.reload();
         } else {
             alert('❌ Gagal: ' + (result.message || 'Tidak bisa menyimpan'));            
@@ -139,7 +140,7 @@ document.getElementById('testBtn').addEventListener('click', async () => {
             body: JSON.stringify({ api_key: apiKey })
         });
 
-                        if (!response.ok) {
+        if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
@@ -151,8 +152,8 @@ document.getElementById('testBtn').addEventListener('click', async () => {
             throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}`);
         }
         
-        if (result.ok) {
-            alert('✅ API connection successful!\n\nResponse: ' + JSON.stringify(result.data, null, 2));
+        if (result.success) {
+            alert('✅ API connection successful!\n\nResponse: ' + JSON.stringify(result.data || {}, null, 2));
         } else {
             alert('❌ API test failed: ' + (result.message || 'Unknown error'));
         }
@@ -175,8 +176,8 @@ document.getElementById('loadStatsBtn').addEventListener('click', async () => {
 
         const result = await response.json();
         
-        if (result.ok) {
-            const stats = result.data;
+        if (result.success) {
+            const stats = result.data || {};
             document.getElementById('statsContent').innerHTML = `
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
                     <div class="card" style="padding:12px;text-align:center;">
