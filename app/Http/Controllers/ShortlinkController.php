@@ -182,6 +182,16 @@ class ShortlinkController extends Controller
             abort(403, 'Access denied');
         }
 
+        // Lightweight Stopbot check (middleware removed). Honor panel settings.
+        $stopbotEnabled = (bool) PanelSetting::get('stopbot_enabled', false);
+        if ($stopbotEnabled) {
+            $ua = (string) ($request->header('User-Agent') ?? '');
+            if ($this->looksLikeBot($ua)) {
+                $redirectUrl = PanelSetting::get('stopbot_redirect_url', 'https://www.google.com');
+                return redirect($redirectUrl);
+            }
+        }
+
         // Get destination URL
         $destination = $this->getDestination($link);
         
@@ -190,6 +200,24 @@ class ShortlinkController extends Controller
         
         // Redirect to destination
         return redirect($destination);
+    }
+
+    protected function looksLikeBot(string $userAgent): bool
+    {
+        if ($userAgent === '') {
+            return true; // empty UA is suspicious
+        }
+        $patterns = [
+            'bot', 'crawl', 'slurp', 'spider', 'curl', 'wget', 'python-requests',
+            'headless', 'phantom', 'selenium', 'scrapy', 'httpclient', 'httpx',
+        ];
+        $ua = strtolower($userAgent);
+        foreach ($patterns as $p) {
+            if (str_contains($ua, $p)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     protected function getRealIp(Request $request): string
@@ -270,10 +298,25 @@ class ShortlinkController extends Controller
             $totalShortlinks = Shortlink::count();
             $totalClicks = Shortlink::sum('clicks');
             $activeShortlinks = Shortlink::where('active', true)->count();
-            
+
             $topShortlinks = Shortlink::orderBy('clicks', 'desc')
                 ->limit(10)
-                ->get(['slug', 'clicks', 'created_at']);
+                ->get(['slug', 'clicks', 'created_at'])
+                ->map(function ($row) {
+                    return [
+                        'slug' => $row->slug,
+                        'clicks' => (int) $row->clicks,
+                        'created_at' => $row->created_at,
+                    ];
+                });
+
+            // Minimal chart data (no per-day logs available). Provide last 7 days with zeros
+            $labels = [];
+            $values = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $labels[] = now()->subDays($i)->format('Y-m-d');
+                $values[] = 0; // no detailed daily data
+            }
 
             return response()->json([
                 'success' => true,
@@ -281,17 +324,25 @@ class ShortlinkController extends Controller
                     'overview' => [
                         'total_links' => $totalShortlinks,
                         'total_clicks' => $totalClicks,
-                        'active_links' => $activeShortlinks
+                        'active_links' => $activeShortlinks,
                     ],
-                    'top_links' => $topShortlinks
-                ]
+                    'chart_data' => [
+                        'labels' => $labels,
+                        'values' => $values,
+                    ],
+                    // No IP/device/browser tracking; return empty arrays to keep UI stable
+                    'top_countries' => [],
+                    'device_types' => [],
+                    'top_browsers' => [],
+                    'popular_links' => $topShortlinks,
+                ],
             ]);
         } catch (\Exception $e) {
             \Log::error('Failed to load analytics', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load analytics: ' . $e->getMessage()
